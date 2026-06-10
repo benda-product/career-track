@@ -1,0 +1,62 @@
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:7
+    container_name: careertrack-mongo
+    restart: unless-stopped
+    ports:
+      - '27017:27017'
+    volumes:
+      - mongo_data:/data/db
+    environment:
+      MONGO_INITDB_DATABASE: careertrack
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: careertrack-backend
+    restart: unless-stopped
+    ports:
+      - '5003:5003'
+    environment:
+      NODE_ENV: production
+      PORT: 5003
+      MONGO_URI: mongodb://mongodb:27017/careertrack
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-change-me-refresh-in-production}
+      CLIENT_URL: http://localhost:3003
+      RESUME_BUILDER_API_URL: ${RESUME_BUILDER_API_URL:-http://host.docker.internal:5001/api/v1}
+      ATS_API_URL: ${ATS_API_URL:-http://host.docker.internal:5002/api}
+      CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME:-}
+      CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY:-}
+      CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET:-}
+      EMAIL_HOST: ${EMAIL_HOST:-}
+      EMAIL_PORT: ${EMAIL_PORT:-587}
+      EMAIL_USER: ${EMAIL_USER:-}
+      EMAIL_PASS: ${EMAIL_PASS:-}
+    depends_on:
+      - mongodb
+    volumes:
+      - ./backend/logs:/app/logs
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:5003/api/v1
+        NEXT_PUBLIC_SOCKET_URL: http://localhost:5003
+    container_name: careertrack-frontend
+    restart: unless-stopped
+    ports:
+      - '3003:3003'
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:5003/api/v1
+      NEXT_PUBLIC_SOCKET_URL: http://localhost:5003
+    depends_on:
+      - backend
+
+volumes:
+  mongo_data:
