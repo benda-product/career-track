@@ -8,6 +8,7 @@ import {
   generatePasswordResetToken,
 } from '../../utils/token';
 import { EmailService } from '../../services/email.service';
+import { syncCandidateToTalentPool } from '../../services/talentPool.service';
 import { ApiError } from '../../utils/apiError';
 import { JwtPayload } from '../../types';
 
@@ -48,6 +49,7 @@ export class AuthService {
     });
 
     await profileRepository.create(user._id.toString());
+    void syncCandidateToTalentPool(user._id.toString());
     await EmailService.sendVerificationEmail(user.email, verificationToken);
 
     const tokens = this.buildTokens(user);

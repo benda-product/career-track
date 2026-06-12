@@ -90,6 +90,9 @@ export default function ApplicationsPage() {
                     <div>
                       <p className="font-medium">{app.jobTitle}</p>
                       <p className="text-sm text-muted-foreground">{app.company}</p>
+                      {app.resumeTitle ? (
+                        <p className="text-xs text-muted-foreground">Resume: {app.resumeTitle}</p>
+                      ) : null}
                     </div>
                     <Badge>{APPLICATION_STAGES.find((s) => s.value === app.stage)?.label}</Badge>
                   </div>

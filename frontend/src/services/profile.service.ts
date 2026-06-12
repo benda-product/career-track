@@ -1,14 +1,14 @@
 import apiClient from '@/lib/api-client';
-import { ApiResponse, Profile } from '@/types';
+import { ApiResponse, CandidateProfileResponse, CandidateProfileUser } from '@/types';
 
 export const profileService = {
-  getProfile: async () => {
-    const res = await apiClient.get<ApiResponse<Profile>>('/profile');
+  getProfile: async (): Promise<CandidateProfileResponse> => {
+    const res = await apiClient.get<ApiResponse<CandidateProfileResponse>>('/profile');
     return res.data.data!;
   },
 
-  updateProfile: async (data: Partial<Profile>) => {
-    const res = await apiClient.put<ApiResponse<Profile>>('/profile', data);
+  updateProfile: async (data: Partial<CandidateProfileUser> & { skills?: string[] }): Promise<CandidateProfileResponse> => {
+    const res = await apiClient.put<ApiResponse<CandidateProfileResponse>>('/profile', data);
     return res.data.data!;
   },
 

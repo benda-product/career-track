@@ -3,7 +3,8 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
-import { Briefcase, MapPin, Bookmark, ExternalLink } from 'lucide-react';
+import { Briefcase, MapPin, ExternalLink } from 'lucide-react';
+import { SaveJobButton } from '@/components/jobs/save-job-button';
 import { PageHeader } from '@/components/ui/page-header';
 import { Button } from '@/components/ui/button';
 import { ButtonLink } from '@/components/ui/link-button';
@@ -36,7 +37,10 @@ export default function JobsPage() {
         title="Jobs"
         description="Discover opportunities from our ATS integration"
         action={
-          <ButtonLink href="/jobs/search" variant="outline">Advanced Search</ButtonLink>
+          <div className="flex gap-2">
+            <ButtonLink href="/jobs/saved" variant="outline">Saved Jobs</ButtonLink>
+            <ButtonLink href="/jobs/search" variant="outline">Advanced Search</ButtonLink>
+          </div>
         }
       />
 
@@ -80,7 +84,7 @@ export default function JobsPage() {
                   </div>
                 </div>
                 <div className="flex gap-2">
-                  <Button size="sm" variant="ghost"><Bookmark className="h-4 w-4" /></Button>
+                  <SaveJobButton job={{ ...job, id: job.id || String(i) }} />
                   <ButtonLink href={`/jobs/${job.id || i}`} size="sm">
                     <ExternalLink className="mr-1 h-4 w-4" />View
                   </ButtonLink>

@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Search } from 'lucide-react';
+import { SaveJobButton } from '@/components/jobs/save-job-button';
 import { PageHeader } from '@/components/ui/page-header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -146,7 +147,10 @@ export default function JobSearchPage() {
                   <p className="font-medium">{job.title}</p>
                   <p className="text-sm text-muted-foreground">{job.company}</p>
                 </div>
-                <ButtonLink href={`/jobs/${job.id || i}`} size="sm">View</ButtonLink>
+                <div className="flex gap-2">
+                  <SaveJobButton job={{ ...job, id: job.id || String(i) }} />
+                  <ButtonLink href={`/jobs/${job.id || i}`} size="sm">View</ButtonLink>
+                </div>
               </CardContent>
             </Card>
           ))}

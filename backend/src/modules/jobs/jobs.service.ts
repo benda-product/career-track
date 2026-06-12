@@ -4,8 +4,18 @@ import { SavedJob } from './savedJob.model';
 import { RecentlyViewed } from './recentlyViewed.model';
 import { applicationRepository } from '../../repositories/application.repository';
 import { profileRepository } from '../../repositories/profile.repository';
-import { ApiError } from '../../utils/apiError';
+import { userRepository } from '../../repositories/user.repository';
+import { IApplication } from '../applications/application.model';
+import { logger } from '../../utils/logger';
+import { buildApplicationCandidateData } from '../../services/talentPool.service';
+import {
+  buildResumePdfUrlForAts,
+  pickResumeUrlForAts,
+} from '../../services/applicationResume.service';
 import { extractJob, extractJobsList, NormalizedJob } from '../../utils/atsJob.mapper';
+import { recommendationService } from './recommendation.service';
+import { resumeBuilderService } from '../../services/resumeBuilder.service';
+import { ApiError } from '../../utils/apiError';
 
 function toAtsQuery(filters: JobSearchFilters): Record<string, unknown> {
   const params: Record<string, unknown> = { ...filters };
@@ -48,21 +58,131 @@ export class JobsService {
       );
     }
 
-    return job;
+    let hasApplied = false;
+    let appliedResumeId: string | undefined;
+    let appliedResumeTitle: string | undefined;
+    if (userId) {
+      const existing = await applicationRepository.findByUserAndJob(userId, jobId);
+      if (existing && !existing.isSaved) {
+        hasApplied = true;
+        appliedResumeId = existing.resumeId;
+        appliedResumeTitle = existing.resumeTitle;
+      }
+    }
+
+    return { ...job, hasApplied, appliedResumeId, appliedResumeTitle };
   }
 
-  async applyToJob(userId: string, jobId: string, resumeId: string, coverLetter?: string) {
+  private async resolveResumeForApply(email: string, resumeId?: string) {
+    if (!resumeId?.trim()) {
+      throw new ApiError(400, 'Please select a resume to submit with your application.');
+    }
+
+    try {
+      const resume = (await resumeBuilderService.getResume(email, resumeId)) as {
+        title?: string;
+        id?: string;
+        _id?: string;
+      };
+      return {
+        resumeId: String(resume.id || resume._id || resumeId),
+        resumeTitle: resume.title?.trim() || 'Resume',
+      };
+    } catch {
+      throw new ApiError(404, 'Selected resume was not found. Choose another resume or create a new one.');
+    }
+  }
+
+  private async syncApplicationWithAts(
+    userId: string,
+    jobId: string,
+    resumeId: string,
+    application: IApplication
+  ): Promise<IApplication> {
+    try {
+      const [user, profile, atsJobMeta] = await Promise.all([
+        userRepository.findById(userId),
+        profileRepository.findByUserId(userId),
+        atsService.getJobMeta(jobId),
+      ]);
+
+      if (!user) return application;
+
+      const effectiveResumeId = resumeId || profile?.resumeId;
+      const resumePdfUrl = effectiveResumeId
+        ? await buildResumePdfUrlForAts(user.email, effectiveResumeId)
+        : undefined;
+      const resumeUrl = pickResumeUrlForAts(resumePdfUrl, profile?.resumeUrl);
+
+      const candidateData = profile ? buildApplicationCandidateData(user, profile) : undefined;
+      const appliedAt = application.appliedAt || new Date();
+
+        const atsResult = await atsService.syncApplication({
+          jobId,
+          candidateName: `${user.firstName} ${user.lastName}`.trim(),
+          candidateEmail: user.email,
+          resumeId: effectiveResumeId,
+          resumeUrl,
+          appliedAt: appliedAt.toISOString(),
+          recruiterId: atsJobMeta?.recruiterId,
+          companyId: atsJobMeta?.companyId,
+          candidateData,
+        });
+
+      const updates: Partial<IApplication> = {};
+      if (atsResult?.applicationId && !application.atsApplicationId) {
+        updates.atsApplicationId = atsResult.applicationId;
+      }
+      if (effectiveResumeId) {
+        updates.resumeId = effectiveResumeId;
+      }
+      if (Object.keys(updates).length) {
+        const updated = await applicationRepository.update(application._id.toString(), updates);
+        if (updated) return updated;
+        Object.assign(application, updates);
+      }
+    } catch (err) {
+      logger.error('ATS sync failed for application', { userId, jobId, err });
+    }
+
+    return application;
+  }
+
+  async applyToJob(
+    userId: string,
+    jobId: string,
+    resumeId: string,
+    _coverLetter?: string
+  ): Promise<{ application: IApplication; created: boolean }> {
+    const user = await userRepository.findById(userId);
+    if (!user) {
+      throw new ApiError(404, 'User not found');
+    }
+
+    const { resumeId: selectedResumeId, resumeTitle } = await this.resolveResumeForApply(
+      user.email,
+      resumeId
+    );
+
     const existing = await applicationRepository.findByUserAndJob(userId, jobId);
     if (existing && !existing.isSaved) {
-      throw new ApiError(409, 'Already applied to this job');
+      const updated =
+        (await applicationRepository.update(existing._id.toString(), {
+          resumeId: selectedResumeId,
+          resumeTitle,
+        })) || existing;
+      updated.resumeId = selectedResumeId;
+      updated.resumeTitle = resumeTitle;
+      const application = await this.syncApplicationWithAts(
+        userId,
+        jobId,
+        selectedResumeId,
+        updated
+      );
+      return { application, created: false };
     }
 
     const job = await this.getJob(jobId);
-
-    const atsResult = await atsService.applyToJob(jobId, userId, resumeId, coverLetter) as {
-      applicationId?: string;
-      application?: { _id?: string };
-    };
 
     const application = await applicationRepository.create({
       userId: new mongoose.Types.ObjectId(userId),
@@ -72,10 +192,13 @@ export class JobsService {
       companyLogo: job.companyLogo,
       location: job.location,
       salary: job.salary,
-      atsApplicationId: atsResult.applicationId ?? atsResult.application?._id?.toString(),
+      resumeId: selectedResumeId,
+      resumeTitle,
+      appliedAt: new Date(),
     });
 
-    return application;
+    const synced = await this.syncApplicationWithAts(userId, jobId, selectedResumeId, application);
+    return { application: synced, created: true };
   }
 
   async saveJob(userId: string, jobData: {
@@ -114,15 +237,8 @@ export class JobsService {
     return RecentlyViewed.find({ userId }).sort({ viewedAt: -1 }).limit(limit);
   }
 
-  async getRecommendedJobs(userId: string): Promise<NormalizedJob[]> {
-    const profile = await profileRepository.getOrCreate(userId);
-    const skills = profile.skills.map((s) => s.name);
-    try {
-      const result = await atsService.getRecommendedJobs(userId, skills);
-      return extractJobsList(result);
-    } catch {
-      return this.searchJobs({ skills: skills.join(','), limit: 10 });
-    }
+  async getRecommendedJobs(userId: string, page = 1, limit = 10) {
+    return recommendationService.getRecommendedJobs(userId, page, limit);
   }
 }
 

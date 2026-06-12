@@ -7,6 +7,7 @@ import {
   User,
   FileText,
   Briefcase,
+  Bookmark,
   Kanban,
   Bell,
   Settings,
@@ -20,9 +21,11 @@ const iconMap = {
   User,
   FileText,
   Briefcase,
+  Bookmark,
   Kanban,
   Bell,
   Settings,
+  Sparkles,
 };
 
 export function Sidebar() {
@@ -40,7 +43,13 @@ export function Sidebar() {
       <nav className="flex-1 space-y-1 p-4">
         {NAV_ITEMS.map((item) => {
           const Icon = iconMap[item.icon as keyof typeof iconMap];
-          const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
+          const isActive =
+            pathname === item.href ||
+            (pathname.startsWith(`${item.href}/`) &&
+              !(
+                item.href === '/jobs' &&
+                (pathname.startsWith('/jobs/saved') || pathname.startsWith('/jobs/recommended'))
+              ));
 
           return (
             <Link

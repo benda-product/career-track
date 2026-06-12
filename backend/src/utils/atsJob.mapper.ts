@@ -10,6 +10,11 @@ export interface NormalizedJob {
   hybrid?: boolean;
   description?: string;
   skills?: string[];
+  postedAt?: string;
+  minExperience?: number;
+  hasApplied?: boolean;
+  appliedResumeId?: string;
+  appliedResumeTitle?: string;
 }
 
 export function normalizeAtsJob(raw: Record<string, unknown>): NormalizedJob {
@@ -34,6 +39,13 @@ export function normalizeAtsJob(raw: Record<string, unknown>): NormalizedJob {
       ...((raw.skills as string[]) || []),
       ...((raw.requiredSkills as string[]) || []),
     ],
+    postedAt: String(raw.publishedAt ?? raw.postedAt ?? raw.createdAt ?? '') || undefined,
+    minExperience:
+      typeof raw.minimumExperience === 'number'
+        ? raw.minimumExperience
+        : typeof raw.minExperience === 'number'
+          ? raw.minExperience
+          : undefined,
   };
 }
 

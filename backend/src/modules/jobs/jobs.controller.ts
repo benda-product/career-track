@@ -17,13 +17,18 @@ export class JobsController {
   });
 
   applyToJob = asyncHandler(async (req: AuthRequest, res: Response) => {
-    const application = await jobsService.applyToJob(
+    const { application, created } = await jobsService.applyToJob(
       req.user!.userId,
       getParam(req.params.id),
       req.body.resumeId,
       req.body.coverLetter
     );
-    sendSuccess(res, application, 'Application submitted', 201);
+    sendSuccess(
+      res,
+      application,
+      created ? 'Application submitted' : 'You have already applied to this job',
+      created ? 201 : 200
+    );
   });
 
   saveJob = asyncHandler(async (req: AuthRequest, res: Response) => {
@@ -54,8 +59,15 @@ export class JobsController {
   });
 
   getRecommended = asyncHandler(async (req: AuthRequest, res: Response) => {
-    const jobs = await jobsService.getRecommendedJobs(req.user!.userId);
-    sendSuccess(res, jobs);
+    const page = parseInt(req.query.page as string, 10) || 1;
+    const limit = parseInt(req.query.limit as string, 10) || 10;
+    const result = await jobsService.getRecommendedJobs(req.user!.userId, page, limit);
+    sendSuccess(res, result.jobs, 'Recommended jobs fetched', 200, {
+      page: result.page,
+      limit: result.limit,
+      total: result.total,
+      totalPages: result.totalPages,
+    });
   });
 }
 

@@ -1,5 +1,7 @@
 export const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5003/api/v1';
 export const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:5003';
+export const RESUME_BUILDER_URL =
+  process.env.NEXT_PUBLIC_RESUME_BUILDER_URL || 'http://localhost:3001';
 
 export const APPLICATION_STAGES = [
   { value: 'applied', label: 'Applied', color: 'bg-blue-500' },
@@ -16,6 +18,8 @@ export const NAV_ITEMS = [
   { href: '/profile', label: 'Profile', icon: 'User' },
   { href: '/resume', label: 'Resume', icon: 'FileText' },
   { href: '/jobs', label: 'Jobs', icon: 'Briefcase' },
+  { href: '/jobs/saved', label: 'Saved Jobs', icon: 'Bookmark' },
+  { href: '/jobs/recommended', label: 'Recommended', icon: 'Sparkles' },
   { href: '/applications', label: 'Applications', icon: 'Kanban' },
   { href: '/notifications', label: 'Notifications', icon: 'Bell' },
   { href: '/settings', label: 'Settings', icon: 'Settings' },

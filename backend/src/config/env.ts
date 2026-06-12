@@ -13,11 +13,14 @@ export const env = {
     refreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d',
   },
   clientUrl: process.env.CLIENT_URL || 'http://localhost:3003',
+  internalSyncKey:
+    process.env.INTERNAL_SYNC_KEY || process.env.BENDA_INTERNAL_KEY || 'internal_secret_key',
   resumeBuilder: {
     apiUrl: process.env.RESUME_BUILDER_API_URL || 'http://localhost:5001/api/v1',
+    clientUrl: process.env.RESUME_BUILDER_CLIENT_URL || 'http://localhost:3001',
   },
   ats: {
-    apiUrl: process.env.ATS_API_URL || 'http://localhost:5002/api',
+    apiUrl: process.env.ATS_BACKEND_URL || process.env.ATS_API_URL || 'http://localhost:5002/api',
   },
   cloudinary: {
     cloudName: process.env.CLOUDINARY_CLOUD_NAME || '',

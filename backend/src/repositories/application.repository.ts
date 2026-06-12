@@ -37,6 +37,10 @@ export class ApplicationRepository {
     });
   }
 
+  async update(id: string, data: Partial<IApplication>): Promise<IApplication | null> {
+    return Application.findByIdAndUpdate(id, data, { new: true });
+  }
+
   async updateStage(
     id: string,
     stage: ApplicationStage,

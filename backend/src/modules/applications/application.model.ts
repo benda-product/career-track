@@ -22,6 +22,8 @@ export interface IApplication extends Document {
   recruiterFeedback?: string;
   notes?: string;
   atsApplicationId?: string;
+  resumeId?: string;
+  resumeTitle?: string;
   isSaved: boolean;
 }
 
@@ -54,6 +56,8 @@ const applicationSchema = new Schema<IApplication>(
     recruiterFeedback: String,
     notes: String,
     atsApplicationId: String,
+    resumeId: String,
+    resumeTitle: String,
     isSaved: { type: Boolean, default: false },
   },
   { timestamps: true }

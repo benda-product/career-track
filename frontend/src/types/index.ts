@@ -36,6 +36,62 @@ export interface ApiResponse<T = unknown> {
   };
 }
 
+export interface CandidateProfileUser {
+  _id: string;
+  fullName: string;
+  name: string;
+  email: string;
+  phoneNumber: string;
+  phone?: string;
+  location?: {
+    city: string;
+    state: string;
+    country: string;
+  };
+  skills: string[];
+  technicalSkills?: string[];
+  softSkills?: string[];
+  totalExperienceYears: number;
+  experienceYears?: number;
+  workExperiences?: {
+    company: string;
+    designation: string;
+    startDate: string;
+    endDate?: string;
+    currentlyWorking: boolean;
+    description: string;
+  }[];
+  educations?: {
+    degree: string;
+    specialization: string;
+    institute: string;
+    startYear?: number;
+    endYear?: number;
+  }[];
+  certifications?: {
+    name: string;
+    issuingOrganization: string;
+    issueDate: string;
+    expiryDate?: string;
+    credentialId?: string;
+  }[];
+  currentCompany?: string;
+  designation?: string;
+  linkedinProfile?: string;
+  portfolioLinks?: { github?: string; linkedin?: string; website?: string };
+  openToWork?: boolean;
+  profilePhoto?: string;
+  emailVerified?: boolean;
+  profileCompletion?: number;
+  resumeId?: string;
+  resumeUrl?: string;
+}
+
+export interface CandidateProfileResponse {
+  user: CandidateProfileUser;
+  profileCompletion: number;
+}
+
 export interface Profile {
   _id: string;
   userId: string;
@@ -90,6 +146,27 @@ export interface Job {
   skills?: string[];
   industry?: string;
   postedAt?: string;
+  hasApplied?: boolean;
+  appliedResumeId?: string;
+  appliedResumeTitle?: string;
+}
+
+export interface RecommendedJob extends Job {
+  matchScore: number;
+  matchedSkills: string[];
+  missingSkills?: string[];
+  isSaved?: boolean;
+  alreadyApplied?: boolean;
+}
+
+export interface PaginatedResponse<T> {
+  items: T[];
+  meta: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
 }
 
 export interface Application {
@@ -102,6 +179,8 @@ export interface Application {
   salary?: string;
   stage: ApplicationStage;
   appliedAt: string;
+  resumeId?: string;
+  resumeTitle?: string;
   timeline: { stage: ApplicationStage; date: string; note?: string }[];
   recruiterFeedback?: string;
   notes?: string;
@@ -128,7 +207,7 @@ export interface DashboardData {
     byStage: Record<string, number>;
   };
   savedJobs: Job[];
-  recommendedJobs: Job[];
+  recommendedJobs: RecommendedJob[];
   recentActivity: Notification[];
   widgets: {
     profileCompletion: number;

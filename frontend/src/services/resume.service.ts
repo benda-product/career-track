@@ -1,15 +1,66 @@
 import apiClient from '@/lib/api-client';
+import { getResumeBuilderPath } from '@/lib/resume-builder';
 import { ApiResponse } from '@/types';
+
+export interface ResumeAtsScore {
+  score: number;
+  grade?: string;
+  breakdown?: Record<string, number>;
+  strengths?: string[];
+  improvements?: string[];
+  issues?: string[];
+  suggestions?: string[];
+}
+
+export interface ResumeItem {
+  id?: string;
+  _id?: string;
+  title?: string;
+  score?: number;
+  isViewable?: boolean;
+}
+
+export function getResumeId(resume: ResumeItem): string {
+  return resume.id || resume._id || '';
+}
+
+export function getPrimaryResumeId(resumes: ResumeItem[] | undefined): string | null {
+  if (!resumes?.length) return null;
+  return getResumeId(resumes[0]);
+}
 
 export const resumeService = {
   getResumes: async () => {
-    const res = await apiClient.get<ApiResponse<unknown[]>>('/resume');
+    const res = await apiClient.get<ApiResponse<ResumeItem[]>>('/resume');
     return res.data.data!;
   },
 
   getResume: async (id: string) => {
     const res = await apiClient.get<ApiResponse<unknown>>(`/resume/${id}`);
     return res.data.data!;
+  },
+
+  getSsoRedirect: async (options: { returnUrl?: string; targetPath?: string }) => {
+    const res = await apiClient.get<ApiResponse<{ token: string; url: string }>>('/resume/sso-url', {
+      params: {
+        returnUrl: options.returnUrl,
+        targetPath: options.targetPath,
+      },
+    });
+    return res.data.data!;
+  },
+
+  openInResumeBuilder: async (options: {
+    type: 'create' | 'edit' | 'ats';
+    resumeId?: string;
+    returnUrl?: string;
+  }) => {
+    const targetPath = getResumeBuilderPath(options.type, options.resumeId);
+    const session = await resumeService.getSsoRedirect({
+      targetPath,
+      returnUrl: options.returnUrl,
+    });
+    window.location.href = session.url;
   },
 
   createResume: async (data: Record<string, unknown>) => {
@@ -22,35 +73,48 @@ export const resumeService = {
     return res.data.data!;
   },
 
+  deleteResume: async (id: string) => {
+    const res = await apiClient.delete<ApiResponse<null>>(`/resume/${id}`);
+    return res.data;
+  },
+
   getScore: async (id: string) => {
-    const res = await apiClient.get<ApiResponse<{ score: number; suggestions?: string[] }>>(
-      `/resume/score/${id}`
+    const res = await apiClient.get<ApiResponse<ResumeAtsScore>>(`/resume/score/${id}`);
+    return res.data.data!;
+  },
+
+  viewPdf: async (id: string) => {
+    const res = await apiClient.get(`/resume/${id}/pdf`, {
+      params: { inline: '1' },
+      responseType: 'blob',
+    });
+    const blob = new Blob([res.data], { type: 'application/pdf' });
+    return URL.createObjectURL(blob);
+  },
+
+  downloadPdf: async (id: string, filename?: string) => {
+    const res = await apiClient.get(`/resume/${id}/pdf`, { responseType: 'blob' });
+    const blob = new Blob([res.data], { type: 'application/pdf' });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename || `resume-${id}.pdf`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+  },
+
+  setViewable: async (id: string, viewable: boolean) => {
+    const res = await apiClient.patch<ApiResponse<{ resumeId?: string; resumeUrl?: string; viewable: boolean }>>(
+      `/resume/${id}/viewable`,
+      { viewable }
     );
     return res.data.data!;
   },
 
   getTemplates: async () => {
     const res = await apiClient.get<ApiResponse<unknown[]>>('/resume/templates');
-    return res.data.data!;
-  },
-
-  downloadPdf: async (id: string) => {
-    const res = await apiClient.get<ApiResponse<{ url: string }>>(`/resume/${id}/pdf`);
-    return res.data.data!;
-  },
-
-  getAnalytics: async (id: string) => {
-    const res = await apiClient.get<ApiResponse<unknown>>(`/resume/${id}/analytics`);
-    return res.data.data!;
-  },
-
-  getSuggestions: async (id: string) => {
-    const res = await apiClient.get<ApiResponse<unknown>>(`/resume/${id}/suggestions`);
-    return res.data.data!;
-  },
-
-  getPreview: async (id: string) => {
-    const res = await apiClient.get<ApiResponse<unknown>>(`/resume/${id}/preview`);
     return res.data.data!;
   },
 };

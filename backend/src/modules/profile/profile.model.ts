@@ -64,12 +64,26 @@ export interface ICareerPreferences {
   willingToRelocate: boolean;
 }
 
+export interface ILocationDetail {
+  city?: string;
+  state?: string;
+  country?: string;
+}
+
 export interface IProfile extends Document {
   userId: Types.ObjectId;
   headline?: string;
   summary?: string;
   phone?: string;
   location?: string;
+  locationDetail?: ILocationDetail;
+  currentCompany?: string;
+  designation?: string;
+  totalExperienceYears?: number;
+  linkedinProfile?: string;
+  openToWork?: boolean;
+  technicalSkills?: string[];
+  softSkills?: string[];
   dateOfBirth?: Date;
   skills: ISkill[];
   experience: IExperience[];
@@ -81,6 +95,8 @@ export interface IProfile extends Document {
   socialLinks: ISocialLink[];
   resumeId?: string;
   resumeUrl?: string;
+  noticePeriodDays?: number;
+  employmentStatus?: 'actively_looking' | 'open_to_opportunities' | 'not_looking';
   careerPreferences: ICareerPreferences;
   completionScore: number;
 }
@@ -92,6 +108,18 @@ const profileSchema = new Schema<IProfile>(
     summary: String,
     phone: String,
     location: String,
+    locationDetail: {
+      city: String,
+      state: String,
+      country: String,
+    },
+    currentCompany: String,
+    designation: String,
+    totalExperienceYears: { type: Number, default: 0 },
+    linkedinProfile: String,
+    openToWork: { type: Boolean, default: true },
+    technicalSkills: [String],
+    softSkills: [String],
     dateOfBirth: Date,
     skills: [
       {
@@ -146,6 +174,12 @@ const profileSchema = new Schema<IProfile>(
     socialLinks: [{ platform: String, url: String }],
     resumeId: String,
     resumeUrl: String,
+    noticePeriodDays: { type: Number, min: 0 },
+    employmentStatus: {
+      type: String,
+      enum: ['actively_looking', 'open_to_opportunities', 'not_looking'],
+      default: 'open_to_opportunities',
+    },
     careerPreferences: {
       desiredRoles: [String],
       desiredLocations: [String],

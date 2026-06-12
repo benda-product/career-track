@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import {
+  Bookmark,
   Briefcase,
   FileText,
   Heart,
@@ -11,6 +12,9 @@ import {
   TrendingUp,
   Users,
 } from 'lucide-react';
+import { normalizeSavedJobs } from '@/utils/jobs';
+import { RecommendedJobCard } from '@/components/jobs/recommended-job-card';
+import { RecommendedJob } from '@/types';
 import {
   BarChart,
   Bar,
@@ -60,6 +64,9 @@ export default function DashboardPage() {
       }))
     : [];
 
+  const savedJobs = normalizeSavedJobs(data?.savedJobs);
+  const recommendedJobs = (data?.recommendedJobs || []) as RecommendedJob[];
+
   const trendData = [
     { month: 'Jan', applications: 2 },
     { month: 'Feb', applications: 5 },
@@ -77,8 +84,9 @@ export default function DashboardPage() {
         }
       />
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <StatCard title="Total Applications" value={widgets?.appliedJobs ?? 0} icon={Briefcase} />
+        <StatCard title="Saved Jobs" value={widgets?.savedJobs ?? 0} icon={Bookmark} />
         <StatCard title="Shortlisted" value={data?.applicationAnalytics?.shortlisted ?? 0} icon={Users} />
         <StatCard title="Interviews" value={widgets?.interviews ?? 0} icon={Target} />
         <StatCard
@@ -122,14 +130,39 @@ export default function DashboardPage() {
                 Missing: {data.profileCompletion.missing.join(', ')}
               </p>
             ) : null}
-            <ButtonLink href="/profile/edit" variant="outline" size="sm" className="w-full">
+            <ButtonLink href="/profile" variant="outline" size="sm" className="w-full">
               Complete Profile
             </ButtonLink>
           </CardContent>
         </Card>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-6 lg:grid-cols-3">
+        <Card className="border-border/40 bg-card/50">
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle className="text-base">Saved Jobs</CardTitle>
+            <Bookmark className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {savedJobs.length > 0 ? (
+              savedJobs.slice(0, 4).map((job) => (
+                <div key={job.id} className="flex items-center justify-between rounded-lg border border-border/40 p-3">
+                  <div>
+                    <p className="text-sm font-medium">{job.title}</p>
+                    <p className="text-xs text-muted-foreground">{job.company}</p>
+                  </div>
+                  <ButtonLink href={`/jobs/${job.id}`} variant="ghost" size="sm">View</ButtonLink>
+                </div>
+              ))
+            ) : (
+              <p className="text-sm text-muted-foreground">Save jobs while browsing to see them here.</p>
+            )}
+            <ButtonLink href="/jobs/saved" variant="outline" size="sm" className="w-full">
+              View All Saved Jobs
+            </ButtonLink>
+          </CardContent>
+        </Card>
+
         <Card className="border-border/40 bg-card/50">
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-base">Pipeline Overview</CardTitle>
@@ -154,17 +187,18 @@ export default function DashboardPage() {
             <Heart className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent className="space-y-3">
-            {(data?.recommendedJobs as { title?: string; company?: string }[] | undefined)?.slice(0, 4).map((job, i) => (
-              <div key={i} className="flex items-center justify-between rounded-lg border border-border/40 p-3">
-                <div>
-                  <p className="text-sm font-medium">{job.title || 'Job Title'}</p>
-                  <p className="text-xs text-muted-foreground">{job.company || 'Company'}</p>
-                </div>
-                <ButtonLink href="/jobs" variant="ghost" size="sm">View</ButtonLink>
-              </div>
-            )) || (
-              <p className="text-sm text-muted-foreground">Complete your profile to get recommendations.</p>
+            {recommendedJobs.length > 0 ? (
+              recommendedJobs.slice(0, 3).map((job) => (
+                <RecommendedJobCard key={job.id} job={job} compact />
+              ))
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                Complete your profile and add skills to get personalized recommendations.
+              </p>
             )}
+            <ButtonLink href="/jobs/recommended" variant="outline" size="sm" className="w-full">
+              View All Recommended Jobs
+            </ButtonLink>
           </CardContent>
         </Card>
       </div>

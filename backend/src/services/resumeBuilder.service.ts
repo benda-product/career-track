@@ -3,53 +3,116 @@ import { env } from '../config/env';
 import { ApiError } from '../utils/apiError';
 import { logger } from '../utils/logger';
 
+interface ResumeBuilderEnvelope<T> {
+  success: boolean;
+  message?: string;
+  data: T;
+}
+
+export interface ResumeAtsScore {
+  score: number;
+  grade?: string;
+  breakdown?: Record<string, number>;
+  strengths?: string[];
+  improvements?: string[];
+  issues?: string[];
+  suggestions?: string[];
+  keywords?: { matched?: string[]; missing?: string[] };
+}
+
 class ResumeBuilderService {
   private client: AxiosInstance;
 
   constructor() {
     this.client = axios.create({
       baseURL: env.resumeBuilder.apiUrl,
-      timeout: 30000,
+      timeout: 60000,
       headers: {
         'Content-Type': 'application/json',
+        'x-benda-key': env.internalSyncKey,
+        'x-benda-internal-key': env.internalSyncKey,
       },
     });
   }
 
   private async request<T>(method: string, url: string, data?: unknown): Promise<T> {
     try {
-      const response = await this.client.request<T>({ method, url, data });
-      return response.data;
+      const response = await this.client.request<ResumeBuilderEnvelope<T>>({ method, url, data });
+      return response.data.data;
     } catch (error) {
       logger.error('Resume Builder API error', { url, error });
       if (axios.isAxiosError(error)) {
+        const isDown = error.code === 'ECONNREFUSED' || error.code === 'ENOTFOUND';
+        const isAuthError = error.response?.status === 401;
         throw new ApiError(
           error.response?.status || 502,
-          error.response?.data?.message || 'Resume Builder service unavailable'
+          isDown
+            ? 'Resume Builder is not running. Start it on port 5001 (resume-builder/backend).'
+            : isAuthError
+              ? 'Resume Builder sync key mismatch. Ensure INTERNAL_SYNC_KEY matches on ports 5001 and 5003.'
+              : error.response?.data?.message || 'Resume Builder service unavailable'
         );
       }
       throw new ApiError(502, 'Resume Builder service unavailable');
     }
   }
 
-  async getResumes(userId: string) {
-    return this.request('GET', `/resumes?userId=${userId}`);
+  async getResumes(email: string) {
+    return this.request<unknown[]>('GET', `/internal/resumes?email=${encodeURIComponent(email)}`);
   }
 
-  async getResume(resumeId: string) {
-    return this.request('GET', `/resumes/${resumeId}`);
+  async getResume(email: string, resumeId: string) {
+    return this.request('GET', `/internal/resumes/${resumeId}?email=${encodeURIComponent(email)}`);
   }
 
-  async createResume(userId: string, data: Record<string, unknown>) {
-    return this.request('POST', '/resumes', { userId, ...data });
+  async createResume(email: string, data: Record<string, unknown>) {
+    return this.request('POST', '/internal/resumes', { email, ...data });
   }
 
-  async updateResume(resumeId: string, data: Record<string, unknown>) {
-    return this.request('PUT', `/resumes/${resumeId}`, data);
+  async updateResume(email: string, resumeId: string, data: Record<string, unknown>) {
+    return this.request('PUT', `/internal/resumes/${resumeId}`, { email, ...data });
   }
 
-  async deleteResume(resumeId: string) {
-    return this.request('DELETE', `/resumes/${resumeId}`);
+  async deleteResume(email: string, resumeId: string) {
+    return this.request<null>(
+      'DELETE',
+      `/internal/resumes/${resumeId}?email=${encodeURIComponent(email)}`
+    );
+  }
+
+  async createSsoSession(input: {
+    email: string;
+    name?: string;
+    returnUrl?: string;
+    targetPath?: string;
+  }) {
+    return this.request<{ token: string; url: string }>('POST', '/internal/sso-session', input);
+  }
+
+  async downloadPdf(email: string, resumeId: string): Promise<Buffer> {
+    try {
+      const response = await this.client.get(`/internal/resumes/${resumeId}/pdf`, {
+        params: { email },
+        responseType: 'arraybuffer',
+      });
+      return Buffer.from(response.data);
+    } catch (error) {
+      logger.error('Resume Builder PDF export failed', { resumeId, error });
+      if (axios.isAxiosError(error)) {
+        throw new ApiError(
+          error.response?.status || 502,
+          error.response?.data?.message || 'Failed to download resume PDF'
+        );
+      }
+      throw new ApiError(502, 'Failed to download resume PDF');
+    }
+  }
+
+  async getScore(email: string, resumeId: string): Promise<ResumeAtsScore> {
+    return this.request<ResumeAtsScore>(
+      'GET',
+      `/internal/resumes/${resumeId}/ats-score?email=${encodeURIComponent(email)}`
+    );
   }
 
   async getTemplates() {
@@ -60,28 +123,20 @@ class ResumeBuilderService {
     return this.request('GET', `/templates/${templateId}`);
   }
 
-  async downloadPdf(resumeId: string) {
-    return this.request<{ url: string }>('GET', `/resumes/${resumeId}/pdf`);
+  async getAnalytics(_resumeId: string) {
+    throw new ApiError(501, 'Resume analytics is not available via service proxy');
   }
 
-  async getScore(resumeId: string) {
-    return this.request('GET', `/resumes/${resumeId}/score`);
+  async getSuggestions(_resumeId: string) {
+    throw new ApiError(501, 'Resume suggestions are not available via service proxy');
   }
 
-  async getAnalytics(resumeId: string) {
-    return this.request('GET', `/resumes/${resumeId}/analytics`);
+  async getVersions(_resumeId: string) {
+    throw new ApiError(501, 'Resume versions are not available via service proxy');
   }
 
-  async getSuggestions(resumeId: string) {
-    return this.request('GET', `/resumes/${resumeId}/suggestions`);
-  }
-
-  async getVersions(resumeId: string) {
-    return this.request('GET', `/resumes/${resumeId}/versions`);
-  }
-
-  async getPreview(resumeId: string) {
-    return this.request('GET', `/resumes/${resumeId}/preview`);
+  async getPreview(_resumeId: string) {
+    throw new ApiError(501, 'Resume preview is not available via service proxy');
   }
 }
 

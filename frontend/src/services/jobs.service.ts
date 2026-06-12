@@ -1,5 +1,5 @@
 import apiClient from '@/lib/api-client';
-import { ApiResponse, Job, Application } from '@/types';
+import { ApiResponse, Job, Application, RecommendedJob } from '@/types';
 
 export interface JobFilters {
   query?: string;
@@ -62,8 +62,13 @@ export const jobsService = {
     return res.data.data!;
   },
 
-  getRecommended: async () => {
-    const res = await apiClient.get<ApiResponse<Job[]>>('/jobs/recommended');
-    return res.data.data!;
+  getRecommended: async (page = 1, limit = 10) => {
+    const res = await apiClient.get<ApiResponse<RecommendedJob[]>>('/recommended-jobs', {
+      params: { page, limit },
+    });
+    return {
+      items: res.data.data || [],
+      meta: res.data.meta,
+    };
   },
 };

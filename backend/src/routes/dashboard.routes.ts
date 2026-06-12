@@ -3,6 +3,7 @@ import { AuthRequest, authenticate, authorize } from '../middlewares/auth.middle
 import { profileService } from '../modules/profile/profile.service';
 import { applicationRepository } from '../repositories/application.repository';
 import { jobsService } from '../modules/jobs/jobs.service';
+import { recommendationService } from '../modules/jobs/recommendation.service';
 import { Notification } from '../modules/notifications/notification.model';
 import { asyncHandler } from '../utils/asyncHandler';
 import { sendSuccess } from '../utils/response';
@@ -21,7 +22,7 @@ router.get(
         profileService.getCompletion(userId),
         applicationRepository.getAnalytics(userId),
         jobsService.getSavedJobs(userId, 1, 5),
-        jobsService.getRecommendedJobs(userId),
+        recommendationService.getRecommendedJobs(userId, 1, 4),
         Notification.find({ userId }).sort({ createdAt: -1 }).limit(10),
       ]);
 
@@ -29,7 +30,7 @@ router.get(
       profileCompletion: completion,
       applicationAnalytics: analytics,
       savedJobs: savedJobs.jobs,
-      recommendedJobs: recommended,
+      recommendedJobs: recommended.jobs,
       recentActivity: recentNotifications,
       widgets: {
         profileCompletion: completion.score,

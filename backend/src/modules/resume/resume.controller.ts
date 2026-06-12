@@ -1,33 +1,62 @@
 import { Response } from 'express';
 import { AuthRequest } from '../../middlewares/auth.middleware';
 import { resumeBuilderService } from '../../services/resumeBuilder.service';
+import { userRepository } from '../../repositories/user.repository';
+import { clearResumeViewable, setResumeViewable } from '../../services/resumeViewable.service';
 import { asyncHandler } from '../../utils/asyncHandler';
 import { sendSuccess } from '../../utils/response';
 import { getParam } from '../../utils/params';
 
 export class ResumeController {
   getResumes = asyncHandler(async (req: AuthRequest, res: Response) => {
-    const resumes = await resumeBuilderService.getResumes(req.user!.userId);
+    const resumes = await resumeBuilderService.getResumes(req.user!.email);
     sendSuccess(res, resumes);
   });
 
   getResume = asyncHandler(async (req: AuthRequest, res: Response) => {
-    const resume = await resumeBuilderService.getResume(getParam(req.params.id));
+    const resume = await resumeBuilderService.getResume(req.user!.email, getParam(req.params.id));
     sendSuccess(res, resume);
   });
 
   createResume = asyncHandler(async (req: AuthRequest, res: Response) => {
-    const resume = await resumeBuilderService.createResume(req.user!.userId, req.body);
+    const resume = await resumeBuilderService.createResume(req.user!.email, req.body);
     sendSuccess(res, resume, 'Resume created', 201);
   });
 
   updateResume = asyncHandler(async (req: AuthRequest, res: Response) => {
-    const resume = await resumeBuilderService.updateResume(getParam(req.params.id), req.body);
+    const resume = await resumeBuilderService.updateResume(
+      req.user!.email,
+      getParam(req.params.id),
+      req.body
+    );
     sendSuccess(res, resume, 'Resume updated');
   });
 
+  deleteResume = asyncHandler(async (req: AuthRequest, res: Response) => {
+    await resumeBuilderService.deleteResume(req.user!.email, getParam(req.params.id));
+    sendSuccess(res, null, 'Resume deleted');
+  });
+
+  getSsoUrl = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const user = await userRepository.findById(req.user!.userId);
+    const returnUrl = String(req.query.returnUrl || '');
+    const targetPath = String(req.query.targetPath || '');
+
+    const session = await resumeBuilderService.createSsoSession({
+      email: req.user!.email,
+      name: user ? `${user.firstName} ${user.lastName}`.trim() : undefined,
+      returnUrl: returnUrl || undefined,
+      targetPath: targetPath || undefined,
+    });
+
+    sendSuccess(res, session);
+  });
+
   getScore = asyncHandler(async (req: AuthRequest, res: Response) => {
-    const score = await resumeBuilderService.getScore(getParam(req.params.id));
+    const score = await resumeBuilderService.getScore(
+      req.user!.email,
+      getParam(req.params.id)
+    );
     sendSuccess(res, score);
   });
 
@@ -42,8 +71,26 @@ export class ResumeController {
   });
 
   downloadPdf = asyncHandler(async (req: AuthRequest, res: Response) => {
-    const pdf = await resumeBuilderService.downloadPdf(getParam(req.params.id));
-    sendSuccess(res, pdf);
+    const resumeId = getParam(req.params.id);
+    const pdf = await resumeBuilderService.downloadPdf(req.user!.email, resumeId);
+    const inline = req.query.inline === '1';
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader(
+      'Content-Disposition',
+      `${inline ? 'inline' : 'attachment'}; filename="resume-${resumeId}.pdf"`
+    );
+    res.send(pdf);
+  });
+
+  setViewable = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const resumeId = getParam(req.params.id);
+    const viewable = req.body?.viewable !== false;
+
+    const result = viewable
+      ? await setResumeViewable(req.user!.userId, req.user!.email, resumeId)
+      : await clearResumeViewable(req.user!.userId, resumeId);
+
+    sendSuccess(res, result, viewable ? 'Resume is visible to recruiters' : 'Resume hidden from recruiters');
   });
 
   getAnalytics = asyncHandler(async (req: AuthRequest, res: Response) => {

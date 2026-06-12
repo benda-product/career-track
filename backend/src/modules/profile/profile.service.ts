@@ -1,66 +1,69 @@
 import { profileRepository } from '../../repositories/profile.repository';
-import { IProfile } from './profile.model';
-
-const COMPLETION_WEIGHTS = {
-  headline: 5,
-  summary: 10,
-  phone: 5,
-  location: 5,
-  skills: 15,
-  experience: 20,
-  education: 15,
-  projects: 10,
-  certifications: 5,
-  socialLinks: 5,
-  resumeId: 5,
-};
+import { userRepository } from '../../repositories/user.repository';
+import { syncCandidateToTalentPool } from '../../services/talentPool.service';
+import { computeProfileCompletion, getProfileCompletionDetails } from './profile.completion';
+import { mapUpdatePayload, toCandidateProfileView } from './profile.mapper';
+import { CandidateProfileResponse } from './profile.types';
 
 export class ProfileService {
-  calculateCompletionScore(profile: IProfile): number {
-    let score = 0;
-    if (profile.headline) score += COMPLETION_WEIGHTS.headline;
-    if (profile.summary) score += COMPLETION_WEIGHTS.summary;
-    if (profile.phone) score += COMPLETION_WEIGHTS.phone;
-    if (profile.location) score += COMPLETION_WEIGHTS.location;
-    if (profile.skills?.length > 0) score += COMPLETION_WEIGHTS.skills;
-    if (profile.experience?.length > 0) score += COMPLETION_WEIGHTS.experience;
-    if (profile.education?.length > 0) score += COMPLETION_WEIGHTS.education;
-    if (profile.projects?.length > 0) score += COMPLETION_WEIGHTS.projects;
-    if (profile.certifications?.length > 0) score += COMPLETION_WEIGHTS.certifications;
-    if (profile.socialLinks?.length > 0) score += COMPLETION_WEIGHTS.socialLinks;
-    if (profile.resumeId) score += COMPLETION_WEIGHTS.resumeId;
-    return Math.min(score, 100);
+  private async buildProfileResponse(userId: string): Promise<CandidateProfileResponse> {
+    const [user, profile] = await Promise.all([
+      userRepository.findById(userId),
+      profileRepository.getOrCreate(userId),
+    ]);
+
+    if (!user) {
+      throw new Error('User not found');
+    }
+
+    const candidateProfile = toCandidateProfileView(user, profile);
+    const profileCompletion = computeProfileCompletion(candidateProfile);
+
+    return {
+      user: { ...candidateProfile, profileCompletion },
+      profileCompletion,
+    };
   }
 
-  async getProfile(userId: string) {
-    return profileRepository.getOrCreate(userId);
+  async getProfile(userId: string): Promise<CandidateProfileResponse> {
+    return this.buildProfileResponse(userId);
   }
 
-  async updateProfile(userId: string, data: Partial<IProfile>) {
+  async updateProfile(userId: string, body: Record<string, unknown>): Promise<CandidateProfileResponse> {
+    const { userUpdates, profileUpdates } = mapUpdatePayload(body);
+
+    if (Object.keys(userUpdates).length > 0) {
+      await userRepository.update(userId, userUpdates);
+    }
+
     const profile = await profileRepository.getOrCreate(userId);
-    const updated = await profileRepository.update(userId, {
-      ...data,
+
+    if (profileUpdates.linkedinProfile !== undefined) {
+      const otherLinks = (profile.socialLinks || []).filter(
+        (link) => link.platform?.toLowerCase() !== 'linkedin'
+      );
+      profileUpdates.socialLinks = profileUpdates.linkedinProfile
+        ? [...otherLinks, { platform: 'linkedin', url: profileUpdates.linkedinProfile }]
+        : otherLinks;
+    }
+
+    await profileRepository.update(userId, {
+      ...profileUpdates,
       userId: profile.userId,
     });
-    if (!updated) return profile;
 
-    const completionScore = this.calculateCompletionScore(updated);
-    return profileRepository.update(userId, { completionScore });
+    const response = await this.buildProfileResponse(userId);
+    const completionScore = response.profileCompletion;
+    await profileRepository.update(userId, { completionScore });
+
+    void syncCandidateToTalentPool(userId);
+
+    return response;
   }
 
   async getCompletion(userId: string) {
-    const profile = await profileRepository.getOrCreate(userId);
-    const score = this.calculateCompletionScore(profile);
-    const missing: string[] = [];
-
-    if (!profile.headline) missing.push('headline');
-    if (!profile.summary) missing.push('summary');
-    if (!profile.skills?.length) missing.push('skills');
-    if (!profile.experience?.length) missing.push('experience');
-    if (!profile.education?.length) missing.push('education');
-    if (!profile.resumeId) missing.push('resume');
-
-    return { score, missing, strength: score >= 80 ? 'strong' : score >= 50 ? 'moderate' : 'weak' };
+    const response = await this.buildProfileResponse(userId);
+    return getProfileCompletionDetails(response.user);
   }
 }
 
