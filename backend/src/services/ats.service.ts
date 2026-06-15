@@ -98,6 +98,7 @@ class AtsService {
     candidateEmail: string;
     resumeId?: string;
     resumeUrl?: string;
+    resumeTitle?: string;
     appliedAt: string;
     recruiterId?: string;
     companyId?: string;

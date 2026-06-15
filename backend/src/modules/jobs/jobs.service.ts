@@ -10,7 +10,7 @@ import { logger } from '../../utils/logger';
 import { buildApplicationCandidateData } from '../../services/talentPool.service';
 import {
   buildResumePdfUrlForAts,
-  pickResumeUrlForAts,
+  pickApplicationResumeUrl,
 } from '../../services/applicationResume.service';
 import { extractJob, extractJobsList, NormalizedJob } from '../../utils/atsJob.mapper';
 import { recommendationService } from './recommendation.service';
@@ -108,11 +108,11 @@ export class JobsService {
 
       if (!user) return application;
 
-      const effectiveResumeId = resumeId || profile?.resumeId;
+      const effectiveResumeId = resumeId || application.resumeId || profile?.resumeId;
       const resumePdfUrl = effectiveResumeId
         ? await buildResumePdfUrlForAts(user.email, effectiveResumeId)
         : undefined;
-      const resumeUrl = pickResumeUrlForAts(resumePdfUrl, profile?.resumeUrl);
+      const resumeUrl = pickApplicationResumeUrl(resumePdfUrl);
 
       const candidateData = profile ? buildApplicationCandidateData(user, profile) : undefined;
       const appliedAt = application.appliedAt || new Date();
@@ -123,6 +123,7 @@ export class JobsService {
           candidateEmail: user.email,
           resumeId: effectiveResumeId,
           resumeUrl,
+          resumeTitle: application.resumeTitle,
           appliedAt: appliedAt.toISOString(),
           recruiterId: atsJobMeta?.recruiterId,
           companyId: atsJobMeta?.companyId,

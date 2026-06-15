@@ -41,11 +41,7 @@ export async function buildResumePdfUrlForAts(
   }
 }
 
-export function pickResumeUrlForAts(
-  pdfUrl: string | undefined,
-  profileResumeUrl?: string | null
-): string | undefined {
+export function pickApplicationResumeUrl(pdfUrl?: string): string | undefined {
   if (pdfUrl && isDirectResumeFileUrl(pdfUrl)) return pdfUrl;
-  if (profileResumeUrl && isDirectResumeFileUrl(profileResumeUrl)) return profileResumeUrl;
   return pdfUrl;
 }
