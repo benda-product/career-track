@@ -3,6 +3,8 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { formatDistanceToNow } from 'date-fns';
 import { Bell, CheckCheck } from 'lucide-react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { PageHeader } from '@/components/ui/page-header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -12,7 +14,18 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { notificationsService } from '@/services/notifications.service';
 import { cn } from '@/lib/utils';
 
+function isSkillCheckNotification(notification: {
+  title?: string;
+  data?: Record<string, unknown>;
+}) {
+  return (
+    notification.title?.toLowerCase().includes('skill check') ||
+    Boolean(notification.data?.assignmentId)
+  );
+}
+
 export default function NotificationsPage() {
+  const router = useRouter();
   const queryClient = useQueryClient();
   const { data, isLoading } = useQuery({
     queryKey: ['notifications'],
@@ -48,8 +61,20 @@ export default function NotificationsPage() {
         <EmptyState icon={Bell} title="No notifications" description="You're all caught up! New updates will appear here." />
       ) : (
         <div className="space-y-2">
-          {notifications.map((n) => (
-            <Card key={n._id} className={cn('border-border/40', !n.isRead && 'bg-primary/5 border-primary/20')}>
+          {notifications.map((n) => {
+            const skillCheck = isSkillCheckNotification(n);
+            return (
+            <Card
+              key={n._id}
+              className={cn(
+                'border-border/40',
+                !n.isRead && 'bg-primary/5 border-primary/20',
+                skillCheck && 'cursor-pointer hover:border-primary/40'
+              )}
+              onClick={() => {
+                if (skillCheck) router.push('/skill-check');
+              }}
+            >
               <CardContent className="flex items-start gap-4 p-4">
                 <div className={cn('mt-1 h-2 w-2 rounded-full shrink-0', n.isRead ? 'bg-transparent' : 'bg-primary')} />
                 <div className="flex-1">
@@ -61,10 +86,16 @@ export default function NotificationsPage() {
                   <p className="mt-1 text-xs text-muted-foreground">
                     {formatDistanceToNow(new Date(n.createdAt), { addSuffix: true })}
                   </p>
+                  {skillCheck ? (
+                    <Link href="/skill-check" className="mt-2 inline-block text-sm font-medium text-primary hover:underline">
+                      Open Skill Check →
+                    </Link>
+                  ) : null}
                 </div>
               </CardContent>
             </Card>
-          ))}
+          );
+          })}
         </div>
       )}
     </div>

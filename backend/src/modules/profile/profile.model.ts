@@ -43,6 +43,19 @@ export interface ICertification {
   url?: string;
 }
 
+export interface ISkillAssessment {
+  bendaTestId: string;
+  category: string;
+  level: string;
+  marksObtained: number;
+  fullMarks: number;
+  percentage: number;
+  passed: boolean;
+  certificateId?: string;
+  completedAt: Date;
+  platform: 'benda-test';
+}
+
 export interface IAchievement {
   title: string;
   description?: string;
@@ -90,6 +103,7 @@ export interface IProfile extends Document {
   education: IEducation[];
   projects: IProject[];
   certifications: ICertification[];
+  skillAssessments: ISkillAssessment[];
   achievements: IAchievement[];
   portfolio: { title: string; url: string; type: string }[];
   socialLinks: ISocialLink[];
@@ -167,6 +181,20 @@ const profileSchema = new Schema<IProfile>(
         expiryDate: Date,
         credentialId: String,
         url: String,
+      },
+    ],
+    skillAssessments: [
+      {
+        bendaTestId: String,
+        category: String,
+        level: String,
+        marksObtained: Number,
+        fullMarks: Number,
+        percentage: Number,
+        passed: Boolean,
+        certificateId: String,
+        completedAt: Date,
+        platform: { type: String, default: 'benda-test' },
       },
     ],
     achievements: [{ title: String, description: String, date: Date }],

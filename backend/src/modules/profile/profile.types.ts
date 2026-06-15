@@ -29,6 +29,19 @@ export interface CertificationView {
   credentialId?: string;
 }
 
+export interface SkillAssessmentView {
+  bendaTestId: string;
+  category: string;
+  level: string;
+  marksObtained: number;
+  fullMarks: number;
+  percentage: number;
+  passed: boolean;
+  certificateId?: string;
+  completedAt: string;
+  platform: 'benda-test';
+}
+
 export interface CandidateProfileView {
   _id: string;
   fullName: string;
@@ -45,6 +58,7 @@ export interface CandidateProfileView {
   workExperiences: WorkExperienceView[];
   educations: EducationView[];
   certifications: CertificationView[];
+  skillAssessments: SkillAssessmentView[];
   currentCompany?: string;
   designation?: string;
   linkedinProfile?: string;

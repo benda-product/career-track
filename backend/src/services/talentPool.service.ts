@@ -32,6 +32,7 @@ export async function syncCandidateToTalentPool(userId: string): Promise<void> {
       workExperiences: view.workExperiences,
       educations: view.educations,
       certifications: view.certifications,
+      skillAssessments: view.skillAssessments,
       currentCompany: view.currentCompany,
       designation: view.designation,
       linkedinProfile: view.linkedinProfile,

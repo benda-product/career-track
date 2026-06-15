@@ -12,6 +12,7 @@ import {
   Bell,
   Settings,
   Sparkles,
+  ClipboardCheck,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { NAV_ITEMS } from '@/constants';
@@ -26,6 +27,7 @@ const iconMap = {
   Bell,
   Settings,
   Sparkles,
+  ClipboardCheck,
 };
 
 export function Sidebar() {

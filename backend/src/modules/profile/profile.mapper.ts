@@ -4,6 +4,7 @@ import {
   CandidateProfileView,
   CertificationView,
   EducationView,
+  SkillAssessmentView,
   WorkExperienceView,
 } from './profile.types';
 import { calculateTotalExperienceYears } from '../../utils/experience.util';
@@ -65,6 +66,21 @@ function mapCertifications(profile: IProfile): CertificationView[] {
     issueDate: toIsoDate(cert.issueDate),
     expiryDate: cert.expiryDate ? toIsoDate(cert.expiryDate) : undefined,
     credentialId: cert.credentialId,
+  }));
+}
+
+function mapSkillAssessments(profile: IProfile): SkillAssessmentView[] {
+  return (profile.skillAssessments || []).map((assessment) => ({
+    bendaTestId: assessment.bendaTestId || '',
+    category: assessment.category || '',
+    level: assessment.level || '',
+    marksObtained: assessment.marksObtained ?? 0,
+    fullMarks: assessment.fullMarks ?? 0,
+    percentage: assessment.percentage ?? 0,
+    passed: Boolean(assessment.passed),
+    certificateId: assessment.certificateId,
+    completedAt: toIsoDate(assessment.completedAt),
+    platform: 'benda-test',
   }));
 }
 
@@ -139,6 +155,7 @@ export function toCandidateProfileView(user: IUser, profile: IProfile): Candidat
     workExperiences,
     educations: mapEducations(profile),
     certifications: mapCertifications(profile),
+    skillAssessments: mapSkillAssessments(profile),
     currentCompany: profile.currentCompany,
     designation: profile.designation || profile.headline,
     linkedinProfile,

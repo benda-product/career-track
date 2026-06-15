@@ -19,6 +19,10 @@ export const env = {
     apiUrl: process.env.RESUME_BUILDER_API_URL || 'http://localhost:5001/api/v1',
     clientUrl: process.env.RESUME_BUILDER_CLIENT_URL || 'http://localhost:3001',
   },
+  skillTest: {
+    apiUrl: process.env.SKILL_TEST_API_URL || 'http://localhost:5005/api',
+    clientUrl: process.env.SKILL_TEST_CLIENT_URL || 'http://localhost:3005',
+  },
   ats: {
     apiUrl: process.env.ATS_BACKEND_URL || process.env.ATS_API_URL || 'http://localhost:5002/api',
   },
