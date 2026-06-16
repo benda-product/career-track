@@ -1,8 +1,8 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
-import { API_URL } from '@/constants';
+import { getApiUrl } from '@/constants';
 
 const apiClient = axios.create({
-  baseURL: API_URL,
+  baseURL: getApiUrl(),
   timeout: 30000,
   headers: { 'Content-Type': 'application/json' },
 });
@@ -58,7 +58,7 @@ apiClient.interceptors.response.use(
       }
 
       try {
-        const { data } = await axios.post(`${API_URL}/auth/refresh-token`, { refreshToken });
+        const { data } = await axios.post(`${getApiUrl()}/auth/refresh-token`, { refreshToken });
         const newToken = data.data.accessToken;
         localStorage.setItem('accessToken', newToken);
         localStorage.setItem('refreshToken', data.data.refreshToken);

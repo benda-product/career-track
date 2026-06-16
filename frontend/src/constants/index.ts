@@ -1,4 +1,13 @@
-export const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5003/api/v1';
+/** Browser calls same-origin `/api/v1` (proxied to backend). SSR uses full backend URL. */
+export function getApiUrl() {
+  if (typeof window !== 'undefined') {
+    return '/api/v1';
+  }
+  return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5003/api/v1';
+}
+
+export const API_URL = getApiUrl();
+
 export const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:5003';
 export const RESUME_BUILDER_URL =
   process.env.NEXT_PUBLIC_RESUME_BUILDER_URL || 'http://localhost:3001';
