@@ -18,6 +18,16 @@ export interface ResumeItem {
   title?: string;
   score?: number;
   isViewable?: boolean;
+  updatedAt?: string | Date;
+  template?: string;
+  // These fields exist on the resume-builder Resume model but were missing from the frontend type.
+  skills?: string[];
+  education?: unknown[];
+  experience?: unknown[];
+  projects?: unknown[];
+  personalInfo?: {
+    summary?: string;
+  };
 }
 
 export function getResumeId(resume: ResumeItem): string {

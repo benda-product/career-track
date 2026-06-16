@@ -58,10 +58,10 @@ export function Sidebar() {
               key={item.href}
               href={item.href}
               className={cn(
-                'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all',
+                'flex items-center gap-3 rounded-lg border-l-2 px-3 py-2.5 text-sm font-medium transition-all',
                 isActive
-                  ? 'bg-primary/10 text-primary shadow-sm'
-                  : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'
+                  ? 'border-primary bg-primary/10 text-primary shadow-sm pl-2.5'
+                  : 'border-transparent text-muted-foreground hover:bg-muted/50 hover:text-foreground'
               )}
             >
               <Icon className="h-4 w-4" />
