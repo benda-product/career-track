@@ -30,6 +30,10 @@ export class ApplicationRepository {
     return Application.findOne({ userId, jobId });
   }
 
+  async findByAtsApplicationId(atsApplicationId: string): Promise<IApplication | null> {
+    return Application.findOne({ atsApplicationId: String(atsApplicationId) });
+  }
+
   async create(data: Partial<IApplication>): Promise<IApplication> {
     return Application.create({
       ...data,
@@ -44,13 +48,14 @@ export class ApplicationRepository {
   async updateStage(
     id: string,
     stage: ApplicationStage,
-    note?: string
+    note?: string,
+    updatedBy?: string
   ): Promise<IApplication | null> {
     return Application.findByIdAndUpdate(
       id,
       {
         stage,
-        $push: { timeline: { stage, date: new Date(), note } },
+        $push: { timeline: { stage, date: new Date(), note, updatedBy } },
       },
       { new: true }
     );

@@ -24,6 +24,13 @@ function isSkillCheckNotification(notification: {
   );
 }
 
+function isApplicationUpdateNotification(notification: {
+  type?: string;
+  data?: Record<string, unknown>;
+}) {
+  return notification.type === 'application_update' || Boolean(notification.data?.applicationId);
+}
+
 export default function NotificationsPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -63,16 +70,19 @@ export default function NotificationsPage() {
         <div className="space-y-2">
           {notifications.map((n) => {
             const skillCheck = isSkillCheckNotification(n);
+            const applicationUpdate = isApplicationUpdateNotification(n);
+            const clickable = skillCheck || applicationUpdate;
             return (
             <Card
               key={n._id}
               className={cn(
                 'border-border/40',
                 !n.isRead && 'bg-primary/5 border-primary/20',
-                skillCheck && 'cursor-pointer hover:border-primary/40'
+                clickable && 'cursor-pointer hover:border-primary/40'
               )}
               onClick={() => {
                 if (skillCheck) router.push('/skill-check');
+                else if (applicationUpdate) router.push('/applications');
               }}
             >
               <CardContent className="flex items-start gap-4 p-4">
@@ -89,6 +99,10 @@ export default function NotificationsPage() {
                   {skillCheck ? (
                     <Link href="/skill-check" className="mt-2 inline-block text-sm font-medium text-primary hover:underline">
                       Open Skill Check →
+                    </Link>
+                  ) : applicationUpdate ? (
+                    <Link href="/applications" className="mt-2 inline-block text-sm font-medium text-primary hover:underline">
+                      View Applications →
                     </Link>
                   ) : null}
                 </div>

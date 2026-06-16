@@ -42,4 +42,10 @@ export const emitNotification = (userId: string, notification: unknown): void =>
   }
 };
 
+export const emitApplicationUpdate = (userId: string, payload: unknown): void => {
+  if (io) {
+    io.to(`user:${userId}`).emit('application_update', payload);
+  }
+};
+
 export const getIO = (): Server | undefined => io;

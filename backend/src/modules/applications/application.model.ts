@@ -66,5 +66,6 @@ const applicationSchema = new Schema<IApplication>(
 applicationSchema.index({ userId: 1, jobId: 1 }, { unique: true });
 applicationSchema.index({ userId: 1, stage: 1 });
 applicationSchema.index({ userId: 1, appliedAt: -1 });
+applicationSchema.index({ atsApplicationId: 1 }, { sparse: true });
 
 export const Application = mongoose.model<IApplication>('Application', applicationSchema);
