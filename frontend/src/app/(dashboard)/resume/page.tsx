@@ -13,7 +13,6 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { PageHeader } from '@/components/ui/page-header';
 
 import { ResumeFilters } from '@/components/resume/ResumeFilters';
-import { ResumeStats } from '@/components/resume/ResumeStats';
 import { ResumeCard } from '@/components/resume/ResumeCard';
 import { ResumeViewDialog } from '@/components/resume/resume-view-dialog';
 import { getResumeId, resumeService, type ResumeItem } from '@/services/resume.service';
@@ -329,8 +328,8 @@ export default function ResumePage() {
   return (
     <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }} className="space-y-6">
       <PageHeader
-        title="Resume"
-        description="Create, preview, and choose which resume recruiters can view when you apply or appear in the talent pool"
+        title="My Resumes"
+        description="View and manage your created resumes, track their ATS scores, and toggle recruiter visibility."
         action={
           <Button onClick={openCreate}>
             <Plus className="mr-2 h-4 w-4" />
@@ -344,13 +343,6 @@ export default function ResumePage() {
           {(error as Error)?.message || deleteError || actionError}
         </div>
       )}
-
-      <ResumeStats
-        totalResumes={stats.totalResumes}
-        visibleResumes={stats.visibleResumes}
-        averageAtsScore={stats.averageAtsScore}
-        averageCompletion={stats.averageCompletion}
-      />
 
       <ResumeFilters
         query={query}

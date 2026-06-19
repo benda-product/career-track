@@ -1,214 +1,186 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import Link from 'next/link';
-import { Award, ClipboardCheck, Loader2, PlayCircle, RefreshCw } from 'lucide-react';
+import { useCallback, useMemo, useState } from 'react';
+import { motion } from 'framer-motion';
+import { ClipboardCheck, History, PlayCircle, RefreshCw, Trophy, Target, AlertCircle, Award } from 'lucide-react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { PageHeader } from '@/components/ui/page-header';
 import { Button } from '@/components/ui/button';
-import { skillCheckService, SkillCheckSummary, SkillCheckAssignmentItem } from '@/services/skillCheck.service';
-import { SKILL_TEST_URL } from '@/constants';
+import { LinkButton } from '@/components/ui/link-button';
+import { StatCard } from '@/components/ui/stat-card';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Card, CardContent } from '@/components/ui/card';
+import { SkillPerformanceSummary } from '@/components/skill-check/SkillPerformanceSummary';
+import { TestResultCard } from '@/components/skill-check/TestResultCard';
+import { skillCheckService } from '@/services/skillCheck.service';
 
-export default function SkillCheckPage() {
-  const [summary, setSummary] = useState<SkillCheckSummary | null>(null);
-  const [assignments, setAssignments] = useState<SkillCheckAssignmentItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState('');
+export default function ViewResultPage() {
+  const queryClient = useQueryClient();
+  const [syncing, setSyncing] = useState(false);
+  const [syncError, setSyncError] = useState('');
 
-  const loadSummary = async () => {
+  const { data: tests, isLoading, error, refetch, isFetching } = useQuery({
+    queryKey: ['skill-check-history'],
+    queryFn: skillCheckService.getHistory,
+    retry: false,
+  });
+
+  const handleSync = useCallback(async () => {
+    setSyncError('');
+    setSyncing(true);
     try {
-      const [data, pending] = await Promise.all([
-        skillCheckService.getSummary(),
-        skillCheckService.getAssignments(),
-      ]);
-      setSummary(data);
-      setAssignments(pending.filter((row) => row.status === 'assigned'));
-      setError('');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load skill check data');
+      await skillCheckService.refreshFromPlatform();
+      await queryClient.invalidateQueries({ queryKey: ['skill-check-history'] });
+      await refetch();
+    } catch (err: unknown) {
+      const axiosErr = err as { response?: { data?: { message?: string } }; message?: string };
+      setSyncError(
+        axiosErr.response?.data?.message ||
+          axiosErr.message ||
+          'Failed to sync from Benda Test Platform'
+      );
     } finally {
-      setLoading(false);
+      setSyncing(false);
     }
-  };
+  }, [queryClient, refetch]);
 
-  useEffect(() => {
-    loadSummary();
-  }, []);
+  const history = tests || [];
 
-  const handleRefresh = async () => {
-    setRefreshing(true);
-    try {
-      const data = await skillCheckService.refreshFromPlatform();
-      setSummary(data);
-      setError('');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to refresh from Benda Test Platform');
-    } finally {
-      setRefreshing(false);
-    }
-  };
+  const stats = useMemo(() => {
+    const total = history.length;
+    const passed = history.filter((t) => t.passed).length;
+    const passedRate = total > 0 ? Math.round((passed / total) * 100) : 0;
+    const average =
+      total > 0
+        ? Math.round(history.reduce((sum, t) => sum + (t.percentage || 0), 0) / total)
+        : 0;
+    const verifiedSkills = new Set(
+      history.filter((t) => t.passed).map((t) => t.category)
+    ).size;
+    return { total, passed, passedRate, average, verifiedSkills };
+  }, [history]);
 
-  const openAction = (action: 'take' | 'my-tests' | 'certificates', targetPath?: string) => {
-    const returnUrl = `${window.location.origin}/skill-check`;
-    if (targetPath) {
-      skillCheckService
-        .getSsoRedirect({ returnUrl, targetPath })
-        .then((session) => {
-          window.location.href = session.url;
-        })
-        .catch((err: Error) => setError(err.message || 'Failed to open Benda Test Platform'));
-      return;
-    }
-    skillCheckService
-      .openInSkillTest({ action, returnUrl })
-      .catch((err: Error) => setError(err.message || 'Failed to open Benda Test Platform'));
-  };
+  const loadError = syncError || (error as Error | undefined)?.message || '';
 
   return (
-    <div className="space-y-6">
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.2 }}
+      className="space-y-6"
+    >
       <PageHeader
-        title="Skill Check"
-        description="Take skill assessments on Benda Test Platform. Results and certificates sync to your profile."
+        title="View Result"
+        description="Verify your tech skills, download verified credentials, and track your assessment records"
         action={
-          <Button variant="outline" size="sm" onClick={handleRefresh} disabled={refreshing}>
-            <RefreshCw className={`mr-2 h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
-            Sync results
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => void handleSync()}
+              disabled={syncing || isFetching}
+              className="border-border/80 text-foreground hover:bg-muted/30"
+            >
+              <RefreshCw className={`mr-2 h-4 w-4 ${syncing || isFetching ? 'animate-spin' : ''}`} />
+              Sync results
+            </Button>
+            <LinkButton href="/skill-check/take" size="sm" className="shadow-sm font-semibold bg-primary text-primary-foreground hover:bg-primary/90">
+              <PlayCircle className="mr-2 h-4 w-4" />
+              Take test
+            </LinkButton>
+          </div>
         }
       />
 
-      {error ? (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
-          {error}
+      {loadError && (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 flex items-center gap-2">
+          <AlertCircle className="h-4.5 w-4.5 text-red-500" />
+          <p>{loadError}</p>
         </div>
-      ) : null}
+      )}
 
-      {assignments.length ? (
-        <div className="rounded-xl border border-primary/30 bg-primary/5 p-5">
-          <h3 className="font-semibold">Assigned by recruiter</h3>
-          <ul className="mt-3 space-y-2">
-            {assignments.map((assignment) => (
-              <li
-                key={assignment._id}
-                className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border/50 bg-card px-3 py-2 text-sm"
-              >
-                <span>
-                  {assignment.category} ({assignment.level})
-                  {assignment.recruiterName ? ` · from ${assignment.recruiterName}` : ''}
-                </span>
-                <Button size="sm" onClick={() => openAction('take', assignment.targetPath)}>
-                  Start test
-                </Button>
-              </li>
+      {isLoading ? (
+        <div className="space-y-6">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Skeleton key={i} className="h-28" />
             ))}
-          </ul>
+          </div>
+          <Skeleton className="h-48" />
+          <Skeleton className="h-32" />
         </div>
-      ) : null}
-
-      <div className="grid gap-4 md:grid-cols-3">
-        <button
-          type="button"
-          onClick={() => openAction('take')}
-          className="rounded-xl border border-border/60 bg-card p-5 text-left transition hover:border-primary/40 hover:shadow-sm"
-        >
-          <PlayCircle className="mb-3 h-8 w-8 text-primary" />
-          <h3 className="font-semibold">Take Test</h3>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Open Benda Test Platform to start a skill assessment.
-          </p>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => openAction('my-tests')}
-          className="rounded-xl border border-border/60 bg-card p-5 text-left transition hover:border-primary/40 hover:shadow-sm"
-        >
-          <ClipboardCheck className="mb-3 h-8 w-8 text-primary" />
-          <h3 className="font-semibold">My Tests</h3>
-          <p className="mt-1 text-sm text-muted-foreground">
-            View your test history and scores on Benda Test Platform.
-          </p>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => openAction('certificates')}
-          className="rounded-xl border border-border/60 bg-card p-5 text-left transition hover:border-primary/40 hover:shadow-sm"
-        >
-          <Award className="mb-3 h-8 w-8 text-primary" />
-          <h3 className="font-semibold">Certificates</h3>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Access certificates earned from passed assessments.
-          </p>
-        </button>
-      </div>
-
-      <div className="rounded-xl border border-border/60 bg-card p-5">
-        <h3 className="font-semibold">Synced to your profile</h3>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Recruiters can view your verified scores, skills, and certificates from Career Track.
-        </p>
-
-        {loading ? (
-          <div className="mt-4 flex items-center gap-2 text-sm text-muted-foreground">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            Loading synced results…
-          </div>
-        ) : (
-          <div className="mt-4 space-y-4">
-            <div>
-              <h4 className="text-sm font-medium">Test results</h4>
-              {summary?.skillAssessments?.length ? (
-                <ul className="mt-2 space-y-2">
-                  {summary.skillAssessments.map((test) => (
-                    <li
-                      key={test.bendaTestId}
-                      className="flex items-center justify-between rounded-lg border border-border/50 px-3 py-2 text-sm"
-                    >
-                      <span>
-                        {test.category} ({test.level})
-                      </span>
-                      <span className={test.passed ? 'text-green-600' : 'text-muted-foreground'}>
-                        {test.percentage}% {test.passed ? '· Passed' : ''}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="mt-2 text-sm text-muted-foreground">No synced test results yet.</p>
-              )}
+      ) : history.length === 0 ? (
+        <Card className="border-border/60 shadow-sm bg-muted/20">
+          <CardContent className="py-16 text-center max-w-md mx-auto space-y-4">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary mx-auto">
+              <ClipboardCheck className="h-6 w-6" />
             </div>
+            <div className="space-y-1">
+              <h3 className="text-base font-bold text-foreground">No assessment results yet</h3>
+              <p className="text-xs text-muted-foreground leading-normal">
+                Take skill assessments to verify and display your core capabilities on your profile.
+              </p>
+            </div>
+            <LinkButton href="/skill-check/take" size="sm" className="shadow-sm font-semibold bg-primary text-primary-foreground hover:bg-primary/90">
+              Take a test
+            </LinkButton>
+          </CardContent>
+        </Card>
+      ) : (
+        <>
+          {/* Stats widgets */}
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <StatCard
+              title="Total tests"
+              value={stats.total}
+              description="Completed credentials"
+              icon={ClipboardCheck}
+            />
+            <StatCard
+              title="Passed"
+              value={stats.passed}
+              description={`${stats.passedRate}% passing rate`}
+              icon={Trophy}
+            />
+            <StatCard
+              title="Average score"
+              value={`${stats.average}%`}
+              description="Overall mean percentage"
+              icon={Target}
+            />
+            <StatCard
+              title="Verified skills"
+              value={stats.verifiedSkills}
+              description="Hiring badges unlocked"
+              icon={Award}
+            />
+          </div>
 
-            <div>
-              <h4 className="text-sm font-medium">Certificates</h4>
-              {summary?.certifications?.length ? (
-                <ul className="mt-2 space-y-2">
-                  {summary.certifications.map((cert) => (
-                    <li
-                      key={`${cert.name}-${cert.credentialId || cert.issueDate}`}
-                      className="rounded-lg border border-border/50 px-3 py-2 text-sm"
-                    >
-                      <p className="font-medium">{cert.name}</p>
-                      <p className="text-muted-foreground">{cert.issuingOrganization}</p>
-                      {cert.credentialId ? (
-                        <Link
-                          href={`${SKILL_TEST_URL}/verify-certificate`}
-                          target="_blank"
-                          className="text-xs text-primary hover:underline"
-                        >
-                          Verify certificate
-                        </Link>
-                      ) : null}
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="mt-2 text-sm text-muted-foreground">No certificates synced yet.</p>
-              )}
+          {/* Proficiency summary component */}
+          <SkillPerformanceSummary tests={history} />
+
+          {/* Results cards */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between gap-2 border-b pb-2">
+              <h2 className="text-base font-bold tracking-tight text-foreground">Recent Test Results</h2>
+              <LinkButton
+                href="/skill-check/my-tests"
+                variant="ghost"
+                size="sm"
+                className="text-xs font-bold text-primary hover:text-primary/90 hover:bg-primary/5 flex items-center gap-1.5"
+              >
+                <History className="h-4 w-4" />
+                Full history
+              </LinkButton>
+            </div>
+            <div className="space-y-3">
+              {history.map((test) => (
+                <TestResultCard key={test.bendaTestId} test={test} />
+              ))}
             </div>
           </div>
-        )}
-      </div>
-    </div>
+        </>
+      )}
+    </motion.div>
   );
 }

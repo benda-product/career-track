@@ -60,6 +60,25 @@ export class ResumeController {
     sendSuccess(res, score);
   });
 
+  checkAts = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const jobDescription = String(req.body?.jobDescription || '');
+    const result = await resumeBuilderService.checkAts(
+      req.user!.email,
+      getParam(req.params.id),
+      jobDescription
+    );
+    sendSuccess(res, result);
+  });
+
+  checkAtsUpload = asyncHandler(async (req: AuthRequest, res: Response) => {
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: 'Resume file is required' });
+    }
+    const jobDescription = String(req.body?.jobDescription || '');
+    const result = await resumeBuilderService.checkAtsUpload(req.file, jobDescription);
+    sendSuccess(res, result);
+  });
+
   getTemplates = asyncHandler(async (_req: AuthRequest, res: Response) => {
     const templates = await resumeBuilderService.getTemplates();
     sendSuccess(res, templates);

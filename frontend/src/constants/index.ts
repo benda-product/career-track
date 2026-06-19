@@ -39,3 +39,5 @@ export const NAV_ITEMS = [
 
 export const EMPLOYMENT_TYPES = ['Full-time', 'Part-time', 'Contract', 'Internship', 'Freelance'];
 export const REMOTE_OPTIONS = ['Remote', 'Hybrid', 'On-site'];
+
+export { PUBLIC_ASSETS } from './assets';

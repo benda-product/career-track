@@ -18,7 +18,14 @@ export interface SkillTestRecord {
   percentage: number;
   passed: boolean;
   certificateId?: string | null;
+  certificateIssuedAt?: string | Date | null;
   completedAt?: string | Date;
+  rightMCQs?: number | null;
+  rightCodings?: number | null;
+  numOfMcq?: number | null;
+  numOfCoding?: number | null;
+  timeTaken?: string | null;
+  totalTime?: number | null;
 }
 
 class SkillTestService {
@@ -64,6 +71,7 @@ class SkillTestService {
     name?: string;
     returnUrl?: string;
     targetPath?: string;
+    sourceApp?: string;
   }) {
     return this.request<{ token: string; url: string }>('POST', '/internal/sso-session', input);
   }
@@ -80,6 +88,72 @@ class SkillTestService {
       'GET',
       `/internal/tests/passed?email=${encodeURIComponent(email)}`
     );
+  }
+
+  async getCertificateData(testId: string) {
+    try {
+      const response = await axios.get(
+        `${env.skillTest.apiUrl}/nodemailer/certificateData/${encodeURIComponent(testId)}`,
+        { timeout: 30000 }
+      );
+      return response.data as {
+        name: string;
+        course: string;
+        score: number;
+        certificateId: string;
+        issuedDate: string;
+        level: string;
+        category: string;
+        marksObtained: number;
+        fullMarks: number;
+        isEligible: boolean;
+      };
+    } catch (error) {
+      logger.error('Skill Test certificate data error', { testId, error });
+      if (axios.isAxiosError(error)) {
+        throw new ApiError(
+          error.response?.status || 502,
+          (error.response?.data as { message?: string })?.message ||
+            'Failed to load certificate'
+        );
+      }
+      throw new ApiError(502, 'Failed to load certificate');
+    }
+  }
+
+  async verifyCertificate(certificateId: string) {
+    try {
+      const response = await axios.get(
+        `${env.skillTest.apiUrl}/nodemailer/verifyCertificate/${encodeURIComponent(certificateId)}`,
+        { timeout: 30000 }
+      );
+      return response.data as {
+        valid: boolean;
+        message: string;
+        certificate?: {
+          certificateId: string;
+          name: string;
+          course: string;
+          category: string;
+          level: string;
+          score: number;
+          marksObtained: number;
+          fullMarks: number;
+          issuedDate: string | null;
+          passed: boolean;
+        };
+      };
+    } catch (error) {
+      logger.error('Skill Test certificate verify error', { certificateId, error });
+      if (axios.isAxiosError(error)) {
+        throw new ApiError(
+          error.response?.status || 502,
+          (error.response?.data as { message?: string })?.message ||
+            'Failed to verify certificate'
+        );
+      }
+      throw new ApiError(502, 'Failed to verify certificate');
+    }
   }
 
   async getCatalog() {

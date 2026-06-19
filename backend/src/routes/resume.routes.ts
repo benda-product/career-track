@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { resumeController } from '../modules/resume/resume.controller';
 import { authenticate, authorize } from '../middlewares/auth.middleware';
+import { resumeUpload } from '../middlewares/upload.middleware';
 
 const router = Router();
 
@@ -11,6 +12,8 @@ router.get('/sso-url', resumeController.getSsoUrl);
 router.post('/create', resumeController.createResume);
 router.get('/templates', resumeController.getTemplates);
 router.get('/templates/:id', resumeController.getTemplate);
+router.post('/ats/check-upload', resumeUpload.single('resume'), resumeController.checkAtsUpload);
+router.post('/ats/check/:id', resumeController.checkAts);
 router.patch('/:id/viewable', resumeController.setViewable);
 router.get('/:id/pdf', resumeController.downloadPdf);
 router.get('/:id', resumeController.getResume);

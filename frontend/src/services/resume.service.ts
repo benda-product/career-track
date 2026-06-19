@@ -10,6 +10,8 @@ export interface ResumeAtsScore {
   improvements?: string[];
   issues?: string[];
   suggestions?: string[];
+  keywords?: { matched?: string[]; missing?: string[] };
+  parseConfidence?: number;
 }
 
 export interface ResumeItem {
@@ -90,6 +92,26 @@ export const resumeService = {
 
   getScore: async (id: string) => {
     const res = await apiClient.get<ApiResponse<ResumeAtsScore>>(`/resume/score/${id}`);
+    return res.data.data!;
+  },
+
+  checkAts: async (id: string, jobDescription: string) => {
+    const res = await apiClient.post<ApiResponse<ResumeAtsScore>>(`/resume/ats/check/${id}`, {
+      jobDescription,
+    });
+    return res.data.data!;
+  },
+
+  checkAtsUpload: async (file: File, jobDescription?: string) => {
+    const form = new FormData();
+    form.append('resume', file);
+    if (jobDescription?.trim()) {
+      form.append('jobDescription', jobDescription.trim());
+    }
+    const res = await apiClient.post<ApiResponse<ResumeAtsScore>>('/resume/ats/check-upload', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 120000,
+    });
     return res.data.data!;
   },
 

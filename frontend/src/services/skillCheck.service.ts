@@ -39,6 +39,67 @@ export interface SkillCheckAssignmentItem {
   targetPath: string;
 }
 
+export interface SkillTestHistoryItem {
+  bendaTestId: string;
+  category: string;
+  level: string;
+  marksObtained: number;
+  fullMarks: number;
+  percentage: number;
+  passed: boolean;
+  certificateId?: string | null;
+  completedAt?: string;
+  rightMCQs?: number | null;
+  rightCodings?: number | null;
+  numOfMcq?: number | null;
+  numOfCoding?: number | null;
+  timeTaken?: string | null;
+  totalTime?: number | null;
+}
+
+export interface SkillCertificateItem {
+  bendaTestId: string;
+  category: string;
+  level: string;
+  marksObtained: number;
+  fullMarks: number;
+  percentage: number;
+  passed: boolean;
+  certificateId?: string | null;
+  certificateIssuedAt?: string | null;
+  completedAt?: string;
+}
+
+export interface SkillCertificateDetail {
+  name: string;
+  course: string;
+  score: number;
+  certificateId: string;
+  issuedDate: string;
+  level: string;
+  category: string;
+  marksObtained: number;
+  fullMarks: number;
+  isEligible: boolean;
+}
+
+export interface SkillCertificateVerification {
+  valid: boolean;
+  message: string;
+  certificate?: {
+    certificateId: string;
+    name: string;
+    course: string;
+    category: string;
+    level: string;
+    score: number;
+    marksObtained: number;
+    fullMarks: number;
+    issuedDate: string | null;
+    passed: boolean;
+  };
+}
+
 export const skillCheckService = {
   getSsoRedirect: async (options: { returnUrl?: string; targetPath?: string }) => {
     const res = await apiClient.get<ApiResponse<{ token: string; url: string }>>(
@@ -67,6 +128,30 @@ export const skillCheckService = {
 
   getSummary: async () => {
     const res = await apiClient.get<ApiResponse<SkillCheckSummary>>('/skill-check/summary');
+    return res.data.data!;
+  },
+
+  getHistory: async () => {
+    const res = await apiClient.get<ApiResponse<SkillTestHistoryItem[]>>('/skill-check/history');
+    return res.data.data!;
+  },
+
+  getCertificates: async () => {
+    const res = await apiClient.get<ApiResponse<SkillCertificateItem[]>>('/skill-check/certificates');
+    return res.data.data!;
+  },
+
+  getCertificateDetail: async (testId: string) => {
+    const res = await apiClient.get<ApiResponse<SkillCertificateDetail>>(
+      `/skill-check/certificates/${testId}`
+    );
+    return res.data.data!;
+  },
+
+  verifyCertificate: async (certificateId: string) => {
+    const res = await apiClient.get<ApiResponse<SkillCertificateVerification>>(
+      `/skill-check/certificates/verify/${encodeURIComponent(certificateId)}`
+    );
     return res.data.data!;
   },
 

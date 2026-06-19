@@ -4,11 +4,11 @@
    ═══════════════════════════════════════════════════════════════════════ */
 
 :root {
-  --cp-green:       #2d82d8;
-  --cp-green-dark:  #2368ad;
-  --cp-green-light: #5a9fe3;
-  --cp-green-soft:  #e8f2fc;
-  --cp-green-mid:   #b8d9f5;
+  --cp-green:       oklch(0.54 0.14 142);
+  --cp-green-dark:  oklch(0.44 0.12 142);
+  --cp-green-light: oklch(0.68 0.11 142);
+  --cp-green-soft:  oklch(0.96 0.02 142);
+  --cp-green-mid:   oklch(0.85 0.05 142);
   --cp-amber:       #d97706;
   --cp-amber-soft:  #fef3c7;
   --cp-blue:        #2563eb;
@@ -894,20 +894,20 @@ body.app-theme-dark {
   --cp-border:      #2a3040;
   --cp-text:        #e2e8f0;
   --cp-muted:       #8892a4;
-  --cp-green:       #2d82d8;
-  --cp-green-dark:  #7eb8f0;
-  --cp-green-light: #5a9fe3;
-  --cp-green-soft:  rgba(45, 130, 216, 0.18);
-  --cp-green-mid:   #2a4a6e;
+  --cp-green:       oklch(0.68 0.13 142);
+  --cp-green-dark:  oklch(0.78 0.10 142);
+  --cp-green-light: oklch(0.58 0.13 142);
+  --cp-green-soft:  oklch(0.68 0.13 142 / 18%);
+  --cp-green-mid:   oklch(0.38 0.11 142);
   --cp-amber-soft:  rgba(217, 119, 6, 0.18);
   --cp-blue-soft:   rgba(37, 99, 235, 0.18);
   --cp-shadow-sm:   0 1px 3px rgba(0,0,0,0.35), 0 4px 12px rgba(0,0,0,0.2);
   --cp-shadow-md:   0 4px 16px rgba(0,0,0,0.35), 0 1px 4px rgba(0,0,0,0.2);
-  --cd-green:       #2d82d8;
-  --cd-green-dark:  #7eb8f0;
-  --cd-green-light: #5a9fe3;
-  --cd-green-soft:  rgba(45, 130, 216, 0.18);
-  --cd-green-mid:   #2a4a6e;
+  --cd-green:       oklch(0.68 0.13 142);
+  --cd-green-dark:  oklch(0.78 0.10 142);
+  --cd-green-light: oklch(0.58 0.13 142);
+  --cd-green-soft:  oklch(0.68 0.13 142 / 18%);
+  --cd-green-mid:   oklch(0.38 0.11 142);
   --cd-surface:     #1a1f2e;
   --cd-surface-2:   #252c3a;
   --cd-border:      #2a3040;

@@ -12,7 +12,14 @@ export default function CreateResumePage() {
     const returnUrl = `${window.location.origin}/resume`;
     resumeService
       .openInResumeBuilder({ type: 'create', returnUrl })
-      .catch((err: Error) => setError(err.message || 'Failed to open Resume Builder'));
+      .catch((err: unknown) => {
+        const axiosErr = err as { response?: { data?: { message?: string } }; message?: string };
+        setError(
+          axiosErr.response?.data?.message ||
+            axiosErr.message ||
+            'Failed to open Resume Builder'
+        );
+      });
   }, []);
 
   return (

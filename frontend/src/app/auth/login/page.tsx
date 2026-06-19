@@ -6,7 +6,8 @@ import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Sparkles, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
+import { CareerTrackLogo } from '@/components/brand/career-track-logo';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -49,9 +50,7 @@ export default function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-background to-muted/30 p-4">
       <Card className="w-full max-w-md border-border/40 bg-card/80 shadow-xl backdrop-blur-xl">
         <CardHeader className="text-center">
-          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-primary">
-            <Sparkles className="h-6 w-6 text-primary-foreground" />
-          </div>
+          <CareerTrackLogo size="xl" className="mx-auto mb-4 justify-center" />
           <CardTitle className="text-2xl">Welcome back</CardTitle>
           <CardDescription>Sign in to your CareerTrack account</CardDescription>
         </CardHeader>

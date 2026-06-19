@@ -16,6 +16,11 @@ import {
   listSkillCheckAssignments,
 } from './skillCheckAssignment.service';
 import { ApiError } from '../../utils/apiError';
+import {
+  buildCertificateDetail,
+  isCertificateEligible,
+  listOwnedCertificates,
+} from '../../utils/certificate.utils';
 
 export class SkillCheckController {
   getSsoUrl = asyncHandler(async (req: AuthRequest, res: Response) => {
@@ -28,6 +33,7 @@ export class SkillCheckController {
       name: user ? `${user.firstName} ${user.lastName}`.trim() : undefined,
       returnUrl: returnUrl || undefined,
       targetPath: targetPath || undefined,
+      sourceApp: 'Career Track',
     });
 
     sendSuccess(res, session);
@@ -52,6 +58,58 @@ export class SkillCheckController {
   getAssignments = asyncHandler(async (req: AuthRequest, res: Response) => {
     const assignments = await listSkillCheckAssignments(req.user!.userId);
     sendSuccess(res, assignments);
+  });
+
+  getHistory = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const tests = await skillTestService.getTestsByEmail(req.user!.email);
+    sendSuccess(res, tests);
+  });
+
+  getCertificates = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const tests = await skillTestService.getTestsByEmail(req.user!.email);
+    sendSuccess(res, listOwnedCertificates(tests));
+  });
+
+  getCertificateDetail = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const testId = String(req.params.testId || '');
+    if (!testId) {
+      throw new ApiError(400, 'testId is required');
+    }
+
+    const user = await userRepository.findById(req.user!.userId);
+    const tests = await skillTestService.getTestsByEmail(req.user!.email);
+    const owned = tests.find((test) => test.bendaTestId === testId);
+    if (!owned) {
+      throw new ApiError(404, 'Certificate not found');
+    }
+
+    if (!isCertificateEligible(owned)) {
+      throw new ApiError(400, 'Certificate is only available for hard level tests with score >= 80%.');
+    }
+
+    const candidateName = user ? `${user.firstName} ${user.lastName}`.trim() : 'Candidate';
+
+    try {
+      const detail = await skillTestService.getCertificateData(testId);
+      sendSuccess(res, detail);
+      return;
+    } catch (error) {
+      if (!(error instanceof ApiError) || error.statusCode !== 400) {
+        throw error;
+      }
+    }
+
+    sendSuccess(res, buildCertificateDetail(owned, candidateName));
+  });
+
+  verifyCertificate = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const certificateId = String(req.params.certificateId || '').trim();
+    if (!certificateId) {
+      throw new ApiError(400, 'certificateId is required');
+    }
+
+    const result = await skillTestService.verifyCertificate(certificateId);
+    sendSuccess(res, result);
   });
 
   refreshFromPlatform = asyncHandler(async (req: AuthRequest, res: Response) => {

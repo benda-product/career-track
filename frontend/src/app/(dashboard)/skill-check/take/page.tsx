@@ -12,7 +12,14 @@ export default function TakeTestPage() {
     const returnUrl = `${window.location.origin}/skill-check`;
     skillCheckService
       .openInSkillTest({ action: 'take', returnUrl })
-      .catch((err: Error) => setError(err.message || 'Failed to open Benda Test Platform'));
+      .catch((err: unknown) => {
+        const axiosErr = err as { response?: { data?: { message?: string } }; message?: string };
+        setError(
+          axiosErr.response?.data?.message ||
+            axiosErr.message ||
+            'Failed to open Benda Test Platform'
+        );
+      });
   }, []);
 
   return (

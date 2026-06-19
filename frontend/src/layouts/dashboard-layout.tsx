@@ -31,11 +31,28 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <SocketProvider>
-      <div className="flex min-h-screen bg-background">
-        <Sidebar />
+      <div className="flex min-h-screen bg-slate-50/50">
+        <Sidebar className="hidden lg:flex" />
         <div className="flex flex-1 flex-col">
           <TopNavbar />
-          <main className="flex-1 overflow-auto p-4 lg:p-6">{children}</main>
+          <main className="flex-1 overflow-auto p-4 lg:p-6 bg-slate-50/30">
+            {children}
+          </main>
+          <footer className="border-t border-slate-200/60 bg-white/50 py-3.5 px-6 md:flex md:items-center md:justify-between text-[10px] font-semibold text-slate-400">
+            <div className="text-center md:text-left">
+              <span>&copy; {new Date().getFullYear()} CareerTrack Candidate Suite. A product of </span>
+              <a href="https://bendainfotech.com" target="_blank" rel="noreferrer" className="text-slate-500 hover:text-primary transition-colors">
+                Benda Infotech
+              </a>
+            </div>
+            <div className="flex justify-center gap-3.5 mt-2 md:mt-0">
+              <a href="#" className="hover:text-slate-600 transition-colors">Candidate Helpdesk</a>
+              <span className="text-slate-200 select-none">•</span>
+              <a href="#" className="hover:text-slate-600 transition-colors">Privacy Policy</a>
+              <span className="text-slate-200 select-none">•</span>
+              <a href="#" className="hover:text-slate-600 transition-colors">Terms & Service</a>
+            </div>
+          </footer>
         </div>
       </div>
     </SocketProvider>
