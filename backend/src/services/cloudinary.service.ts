@@ -27,6 +27,22 @@ export class CloudinaryService {
     return { url: result.secure_url, publicId: result.public_id };
   }
 
+  static async uploadImageBuffer(
+    buffer: Buffer,
+    options: { folder: string; filename: string; mimeType: string }
+  ): Promise<{ url: string; publicId: string }> {
+    const result = await cloudinary.uploader.upload(
+      `data:${options.mimeType};base64,${buffer.toString('base64')}`,
+      {
+        folder: options.folder,
+        resource_type: 'image',
+        public_id: options.filename.replace(/\.[^.]+$/, ''),
+        overwrite: true,
+      }
+    );
+    return { url: result.secure_url, publicId: result.public_id };
+  }
+
   static async uploadFile(
     file: string,
     folder = 'careertrack'

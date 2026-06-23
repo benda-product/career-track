@@ -26,6 +26,9 @@ export const env = {
   ats: {
     apiUrl: process.env.ATS_BACKEND_URL || process.env.ATS_API_URL || 'http://localhost:5002/api',
   },
+  bendaInfotech: {
+    apiUrl: process.env.BENDA_INFOTECH_API_URL || 'http://localhost:5004/api',
+  },
   cloudinary: {
     cloudName: process.env.CLOUDINARY_CLOUD_NAME || '',
     apiKey: process.env.CLOUDINARY_API_KEY || '',

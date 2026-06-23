@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Bell, LogOut, Menu, Search, Settings, User, Radio, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -108,6 +108,7 @@ export function Header() {
             render={
               <Button variant="ghost" className="relative h-9 w-9 rounded-full ring-2 ring-slate-100 hover:ring-primary/20 transition-all p-0">
                 <Avatar className="h-9 w-9">
+                  {user?.avatar ? <AvatarImage src={user.avatar} alt={initials} /> : null}
                   <AvatarFallback className="bg-primary text-white font-bold text-xs select-none">
                     {initials}
                   </AvatarFallback>

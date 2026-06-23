@@ -24,6 +24,8 @@ import {
   History,
   BarChart3,
   Medal,
+  ListChecks,
+  BookOpen,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { CareerTrackLogo } from '@/components/brand/career-track-logo';
@@ -118,6 +120,20 @@ const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
+    id: 'courses',
+    title: 'Courses',
+    icon: BookOpen,
+    collapsible: false,
+    items: [
+      {
+        href: '/courses',
+        label: 'Browse Courses',
+        icon: BookOpen,
+        match: (pathname) => pathname === '/courses' || pathname.startsWith('/courses/'),
+      },
+    ],
+  },
+  {
     id: 'job-pipeline',
     title: 'Job pipeline',
     icon: Briefcase,
@@ -135,7 +151,21 @@ const NAV_GROUPS: NavGroup[] = [
       },
       { href: '/jobs/saved', label: 'Saved Jobs', icon: Bookmark },
       { href: '/jobs/recommended', label: 'Recommended Jobs', icon: Sparkles },
-      { href: '/applications', label: 'Job Tracker', icon: Kanban },
+      {
+        href: '/applications/status',
+        label: 'Application Status',
+        icon: ListChecks,
+        match: (pathname) =>
+          pathname === '/applications/status' || pathname.startsWith('/applications/status/'),
+      },
+      {
+        href: '/applications',
+        label: 'Job Tracker',
+        icon: Kanban,
+        match: (pathname) =>
+          pathname === '/applications' ||
+          (pathname.startsWith('/applications/') && !pathname.startsWith('/applications/status')),
+      },
     ],
   },
   {

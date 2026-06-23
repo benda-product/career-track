@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { profileService } from "@/services/profile.service";
 import { resumeService } from "@/services/resume.service";
+import { useAuthStore } from "@/store/auth.store";
 import { RESUME_BUILDER_URL } from "@/constants";
 import type { CandidateProfileUser } from "@/types";
 
@@ -67,6 +68,7 @@ function Icon({ k, size = 16 }: { k: string; size?: number }) {
     eye:      <><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" /></>,
     save:     <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2zM17 21v-8H7v8M7 3v5h8" />,
     arrow:    <path d="M5 12h14M12 5l7 7-7 7" />,
+    camera:   <><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" /><circle cx="12" cy="13" r="4" /></>,
     file:     <><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8" /></>,
   };
   return (
@@ -186,7 +188,10 @@ export function CandidateProfilePage() {
   const [saving, setSaving] = useState(false);
   const [autofilling, setAutofilling] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [activeTab, setActiveTab] = useState<"personal" | "experience" | "education" | "certifications">("personal");
+  const photoInputRef = useRef<HTMLInputElement>(null);
+  const updateAuthUser = useAuthStore((s) => s.updateUser);
 
   useEffect(() => {
     profileService
@@ -281,6 +286,35 @@ export function CandidateProfilePage() {
     }
   }
 
+  async function handlePhotoUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingPhoto(true);
+    setSaved("");
+    setError("");
+
+    try {
+      const response = await profileService.uploadProfilePhoto(file);
+      setProfile(response.user);
+      setCompletion(response.profileCompletion || 0);
+      if (response.user.profilePhoto) {
+        updateAuthUser({ avatar: response.user.profilePhoto });
+      }
+      setSaved("Profile photo updated.");
+    } catch (err: unknown) {
+      const axiosErr = err as { response?: { data?: { message?: string } }; message?: string };
+      setError(
+        axiosErr.response?.data?.message ||
+          axiosErr.message ||
+          "Failed to upload profile photo"
+      );
+    } finally {
+      setUploadingPhoto(false);
+      e.target.value = "";
+    }
+  }
+
   function addExp()  { setProfile(p => p ? { ...p, workExperiences: [...(p.workExperiences||[]), { company:"", designation:"", startDate:"", currentlyWorking:true, description:"" }] } : null); setActiveTab("experience"); }
   function addEdu()  { setProfile(p => p ? { ...p, educations: [...(p.educations||[]), { degree:"", specialization:"", institute:"", startYear:new Date().getFullYear(), endYear:new Date().getFullYear() }] } : null); setActiveTab("education"); }
   function addCert() { setProfile(p => p ? { ...p, certifications: [...(p.certifications||[]), { name:"", issuingOrganization:"", issueDate:"", credentialId:"" }] } : null); setActiveTab("certifications"); }
@@ -317,12 +351,29 @@ export function CandidateProfilePage() {
                 {profile.profilePhoto ? (
                   <img
                     src={profile.profilePhoto}
-                    alt=""
+                    alt={profile.fullName || profile.name || "Profile photo"}
                     style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "50%" }}
                   />
                 ) : (
                   getInitials(profile.fullName || profile.name)
                 )}
+                <button
+                  type="button"
+                  className="cp-avatar-upload"
+                  onClick={() => photoInputRef.current?.click()}
+                  disabled={uploadingPhoto}
+                  aria-label="Upload profile photo"
+                >
+                  <Icon k="camera" size={18} />
+                  <span>{uploadingPhoto ? "Uploading…" : "Upload"}</span>
+                </button>
+                <input
+                  ref={photoInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  className="sr-only"
+                  onChange={(e) => void handlePhotoUpload(e)}
+                />
               </div>
               <div className="cp-avatar-ring-wrap">
                 <ProgressRing pct={completion} />

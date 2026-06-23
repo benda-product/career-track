@@ -12,6 +12,15 @@ export const profileService = {
     return res.data.data!;
   },
 
+  uploadProfilePhoto: async (file: File): Promise<CandidateProfileResponse> => {
+    const form = new FormData();
+    form.append('photo', file);
+    const res = await apiClient.post<ApiResponse<CandidateProfileResponse>>('/profile/photo', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return res.data.data!;
+  },
+
   getCompletion: async () => {
     const res = await apiClient.get<ApiResponse<{ score: number; missing: string[]; strength: string }>>(
       '/profile/completion'
