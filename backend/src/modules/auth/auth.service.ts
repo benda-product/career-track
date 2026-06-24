@@ -1,5 +1,6 @@
 import { userRepository } from '../../repositories/user.repository';
 import { profileRepository } from '../../repositories/profile.repository';
+import crypto from 'crypto';
 import {
   generateAccessToken,
   generateRefreshToken,
@@ -22,6 +23,14 @@ interface RegisterDto {
 interface LoginDto {
   email: string;
   password: string;
+}
+
+interface BendaProvisionDto {
+  email: string;
+  firstName: string;
+  lastName: string;
+  phone?: string;
+  photoUrl?: string | null;
 }
 
 export class AuthService {
@@ -187,6 +196,42 @@ export class AuthService {
     } catch {
       throw new ApiError(401, 'Invalid Google token');
     }
+  }
+
+  async provisionFromBendaInfotech(dto: BendaProvisionDto) {
+    const email = dto.email.toLowerCase().trim();
+    let user = await userRepository.findByEmail(email);
+
+    if (!user) {
+      user = await userRepository.create({
+        email,
+        password: crypto.randomBytes(32).toString('hex'),
+        firstName: dto.firstName.trim() || 'User',
+        lastName: dto.lastName.trim() || '',
+        role: 'candidate',
+        avatar: dto.photoUrl || undefined,
+        isEmailVerified: true,
+      });
+      await profileRepository.create(user._id.toString());
+      void syncCandidateToTalentPool(user._id.toString());
+    } else {
+      await userRepository.update(user._id.toString(), { lastLogin: new Date() });
+    }
+
+    const tokens = this.buildTokens(user);
+    await userRepository.addRefreshToken(user._id.toString(), tokens.refreshToken);
+
+    return {
+      user: {
+        id: user._id.toString(),
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        role: user.role,
+        isEmailVerified: user.isEmailVerified,
+      },
+      ...tokens,
+    };
   }
 }
 

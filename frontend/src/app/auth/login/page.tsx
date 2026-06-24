@@ -14,6 +14,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { authService } from '@/services/auth.service';
 import { useAuthStore } from '@/store/auth.store';
+import { BendaAuthPanel } from '@/components/auth/benda-auth-panel';
 
 const loginSchema = z.object({
   email: z.string().email('Invalid email'),
@@ -52,10 +53,23 @@ export default function LoginPage() {
         <CardHeader className="text-center">
           <CareerTrackLogo size="xl" className="mx-auto mb-4 justify-center" />
           <CardTitle className="text-2xl">Welcome back</CardTitle>
-          <CardDescription>Sign in to your CareerTrack account</CardDescription>
+          <CardDescription>
+            Sign in with Benda Infotech if you registered there, or use a Career Track-only account below.
+          </CardDescription>
         </CardHeader>
+        <CardContent className="space-y-4">
+          <BendaAuthPanel product="career_track" />
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t border-border" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-card px-2 text-muted-foreground">Career Track login</span>
+            </div>
+          </div>
+        </CardContent>
         <form onSubmit={handleSubmit(onSubmit)}>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-4 pt-0">
             {error && (
               <div className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">{error}</div>
             )}
