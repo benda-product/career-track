@@ -18,6 +18,8 @@ export interface IUser extends Document {
   refreshTokens: string[];
   lastLogin?: Date;
   isActive: boolean;
+  authProvider?: 'local' | 'benda_infotech';
+  bendaLinked?: boolean;
   comparePassword(candidatePassword: string): Promise<boolean>;
 }
 
@@ -38,6 +40,8 @@ const userSchema = new Schema<IUser>(
     refreshTokens: [{ type: String }],
     lastLogin: Date,
     isActive: { type: Boolean, default: true },
+    authProvider: { type: String, enum: ['local', 'benda_infotech'], default: 'local' },
+    bendaLinked: { type: Boolean, default: false },
   },
   { timestamps: true }
 );

@@ -53,6 +53,7 @@ export class AuthService {
     const verificationToken = generateEmailVerificationToken();
     const user = await userRepository.create({
       ...dto,
+      authProvider: 'local',
       emailVerificationToken: verificationToken,
       emailVerificationExpires: new Date(Date.now() + 24 * 60 * 60 * 1000),
     });
@@ -99,6 +100,25 @@ export class AuthService {
         isEmailVerified: user.isEmailVerified,
       },
       ...tokens,
+    };
+  }
+
+  async verifyCredentialsForBenda(dto: LoginDto) {
+    const user = await userRepository.findByEmail(dto.email);
+    if (!user || !user.isActive) return null;
+
+    const isMatch = await user.comparePassword(dto.password);
+    if (!isMatch) return null;
+
+    return {
+      valid: true,
+      product: 'career_track',
+      accountType: 'job_seeker' as const,
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      role: user.role,
+      userId: user._id.toString(),
     };
   }
 
@@ -211,11 +231,17 @@ export class AuthService {
         role: 'candidate',
         avatar: dto.photoUrl || undefined,
         isEmailVerified: true,
+        authProvider: 'benda_infotech',
       });
       await profileRepository.create(user._id.toString());
       void syncCandidateToTalentPool(user._id.toString());
     } else {
-      await userRepository.update(user._id.toString(), { lastLogin: new Date() });
+      await userRepository.update(user._id.toString(), {
+        lastLogin: new Date(),
+        bendaLinked: true,
+        isEmailVerified: user.isEmailVerified || true,
+        ...(dto.photoUrl && !user.avatar ? { avatar: dto.photoUrl } : {}),
+      });
     }
 
     const tokens = this.buildTokens(user);

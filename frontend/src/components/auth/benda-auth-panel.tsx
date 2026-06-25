@@ -1,6 +1,5 @@
 'use client';
 
-import Link from 'next/link';
 import { ExternalLink } from 'lucide-react';
 import { buttonVariants } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -11,6 +10,9 @@ type BendaAuthPanelProps = {
 };
 
 export function BendaAuthPanel({ product = 'career_track' }: BendaAuthPanelProps) {
+  const signInUrl = getBendaSignInUrl(product);
+  const signUpUrl = getBendaSignUpUrl(product);
+
   return (
     <div className="space-y-3 rounded-xl border border-primary/20 bg-primary/5 p-4">
       <p className="text-sm font-medium text-foreground">
@@ -21,7 +23,7 @@ export function BendaAuthPanel({ product = 'career_track' }: BendaAuthPanelProps
         login only works for accounts created here.
       </p>
       <a
-        href={getBendaSignInUrl(product)}
+        href={signInUrl}
         className={cn(buttonVariants({ variant: 'default', size: 'lg' }), 'w-full')}
       >
         <ExternalLink className="mr-2 h-4 w-4" />
@@ -29,9 +31,9 @@ export function BendaAuthPanel({ product = 'career_track' }: BendaAuthPanelProps
       </a>
       <p className="text-center text-xs text-muted-foreground">
         New here?{' '}
-        <Link href={getBendaSignUpUrl(product)} className="font-medium text-primary hover:underline">
+        <a href={signUpUrl} className="font-medium text-primary hover:underline">
           Create a Benda account
-        </Link>
+        </a>
       </p>
     </div>
   );

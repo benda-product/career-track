@@ -14,7 +14,6 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { authService } from '@/services/auth.service';
 import { useAuthStore } from '@/store/auth.store';
-import { BendaAuthPanel } from '@/components/auth/benda-auth-panel';
 
 const registerSchema = z.object({
   firstName: z.string().min(1, 'First name is required'),
@@ -61,12 +60,10 @@ export default function RegisterPage() {
           <CareerTrackLogo size="xl" className="mx-auto mb-4 justify-center" />
           <CardTitle className="text-2xl">Create your account</CardTitle>
           <CardDescription>
-            Job seekers should register on Benda Infotech. Use this form only for Career Track-only accounts.
+            Create a Career Track account here. If you later sign up on Benda Infotech with the same
+            email, your accounts will be linked automatically.
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <BendaAuthPanel product="career_track" />
-        </CardContent>
         <form onSubmit={handleSubmit(onSubmit)}>
           <CardContent className="space-y-4">
             {error && (

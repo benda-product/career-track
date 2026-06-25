@@ -7,3 +7,8 @@ export function getBendaSignInUrl(product: 'career_track' | 'talent_desk' = 'car
 export function getBendaSignUpUrl(product: 'career_track' | 'talent_desk' = 'career_track') {
   return `${BENDA_URL}/signup?product=${product}`;
 }
+
+export function redirectToBendaSignIn(product: 'career_track' | 'talent_desk' = 'career_track') {
+  if (typeof window === 'undefined') return;
+  window.location.assign(getBendaSignInUrl(product));
+}

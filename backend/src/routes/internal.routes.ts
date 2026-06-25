@@ -12,6 +12,21 @@ router.post(
   requireInternalKey,
   applicationInternalController.syncStageFromAts
 );
+router.get(
+  '/benda-infotech/account-lookup',
+  requireInternalKey,
+  bendaInfotechController.accountLookup
+);
+router.post(
+  '/benda-infotech/verify-credentials',
+  requireInternalKey,
+  bendaInfotechController.verifyCredentials
+);
+router.post(
+  '/benda-infotech/link-account',
+  requireInternalKey,
+  bendaInfotechController.linkAccount
+);
 router.post(
   '/benda-infotech/provision',
   requireInternalKey,

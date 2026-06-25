@@ -2,10 +2,11 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { isAxiosError } from 'axios';
 import { Loader2 } from 'lucide-react';
 import { CareerTrackLogo } from '@/components/brand/career-track-logo';
 import { Button } from '@/components/ui/button';
@@ -14,7 +15,6 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { authService } from '@/services/auth.service';
 import { useAuthStore } from '@/store/auth.store';
-import { BendaAuthPanel } from '@/components/auth/benda-auth-panel';
 
 const loginSchema = z.object({
   email: z.string().email('Invalid email'),
@@ -25,8 +25,9 @@ type LoginForm = z.infer<typeof loginSchema>;
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const setAuth = useAuthStore((s) => s.setAuth);
-  const [error, setError] = useState('');
+  const [error, setError] = useState(searchParams.get('error') || '');
   const [loading, setLoading] = useState(false);
 
   const { register, handleSubmit, formState: { errors } } = useForm<LoginForm>({
@@ -40,8 +41,11 @@ export default function LoginPage() {
       const result = await authService.login(data);
       setAuth(result.user, result.accessToken, result.refreshToken);
       router.push('/dashboard');
-    } catch {
-      setError('Invalid email or password');
+    } catch (err) {
+      const apiMessage = isAxiosError(err)
+        ? (err.response?.data as { message?: string } | undefined)?.message
+        : undefined;
+      setError(apiMessage || 'Invalid email or password');
     } finally {
       setLoading(false);
     }
@@ -54,24 +58,19 @@ export default function LoginPage() {
           <CareerTrackLogo size="xl" className="mx-auto mb-4 justify-center" />
           <CardTitle className="text-2xl">Welcome back</CardTitle>
           <CardDescription>
-            Sign in with Benda Infotech if you registered there, or use a Career Track-only account below.
+            Sign in with your Career Track email and password. If you later create a Benda Infotech
+            account with the same email, your accounts will be linked automatically.
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <BendaAuthPanel product="career_track" />
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <span className="w-full border-t border-border" />
-            </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-card px-2 text-muted-foreground">Career Track login</span>
-            </div>
-          </div>
-        </CardContent>
         <form onSubmit={handleSubmit(onSubmit)}>
-          <CardContent className="space-y-4 pt-0">
+          <CardContent className="space-y-4">
             {error && (
-              <div className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">{error}</div>
+              <div
+                role="alert"
+                className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm font-medium text-destructive"
+              >
+                {error}
+              </div>
             )}
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>

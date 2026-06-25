@@ -23,7 +23,7 @@ export default function BendaSsoPage() {
     const redirect = searchParams.get('redirect') || '/dashboard';
 
     if (!accessToken || !refreshToken || !userId || !email || !firstName || !lastName) {
-      router.replace('/auth/login');
+      router.replace('/auth/login?error=Sign-in%20from%20Benda%20failed.%20Please%20sign%20in%20with%20your%20Career%20Track%20password.');
       return;
     }
 
