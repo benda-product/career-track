@@ -46,6 +46,15 @@ export class AuthController {
     const result = await authService.googleLogin(req.body.idToken);
     sendSuccess(res, result, 'Google login successful');
   });
+
+  ssoLogin = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const { token, redirect } = req.body as { token?: string; redirect?: string };
+    if (!token) {
+      return res.status(400).json({ success: false, message: 'SSO token is required' });
+    }
+    const result = await authService.ssoLoginFromCentralAuth(token, redirect || '/dashboard');
+    sendSuccess(res, result, 'SSO login successful');
+  });
 }
 
 export const authController = new AuthController();

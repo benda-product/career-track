@@ -12,6 +12,13 @@ import { EmailService } from '../../services/email.service';
 import { syncCandidateToTalentPool } from '../../services/talentPool.service';
 import { ApiError } from '../../utils/apiError';
 import { JwtPayload } from '../../types';
+import {
+  verifyCentralAuthToken,
+  syncUserToCentralAuth,
+  provisionUserToCentralAuth,
+  CENTRAL_AUTH_PRODUCTS,
+  CentralAuthPayload,
+} from '../../utils/centralAuthSso';
 
 interface RegisterDto {
   email: string;
@@ -60,6 +67,14 @@ export class AuthService {
 
     await profileRepository.create(user._id.toString());
     void syncCandidateToTalentPool(user._id.toString());
+    void provisionUserToCentralAuth({
+      email: user.email,
+      name: `${user.firstName} ${user.lastName}`.trim(),
+      password: dto.password,
+      roles: ['JOB_SEEKER'],
+      products: [CENTRAL_AUTH_PRODUCTS.CAREER_TRACK],
+      sourceProduct: CENTRAL_AUTH_PRODUCTS.CAREER_TRACK,
+    });
     await EmailService.sendVerificationEmail(user.email, verificationToken);
 
     const tokens = this.buildTokens(user);
@@ -86,6 +101,14 @@ export class AuthService {
     if (!isMatch) throw new ApiError(401, 'Invalid credentials');
 
     await userRepository.update(user._id.toString(), { lastLogin: new Date() });
+
+    void syncUserToCentralAuth({
+      email: user.email,
+      name: `${user.firstName} ${user.lastName}`.trim(),
+      roles: ['JOB_SEEKER'],
+      products: [CENTRAL_AUTH_PRODUCTS.CAREER_TRACK],
+      sourceProduct: CENTRAL_AUTH_PRODUCTS.CAREER_TRACK,
+    });
 
     const tokens = this.buildTokens(user);
     await userRepository.addRefreshToken(user._id.toString(), tokens.refreshToken);
@@ -202,6 +225,14 @@ export class AuthService {
       const tokens = this.buildTokens(user);
       await userRepository.addRefreshToken(user._id.toString(), tokens.refreshToken);
 
+      void syncUserToCentralAuth({
+        email: user.email,
+        name: `${user.firstName} ${user.lastName}`.trim(),
+        roles: ['JOB_SEEKER'],
+        products: [CENTRAL_AUTH_PRODUCTS.CAREER_TRACK],
+        sourceProduct: CENTRAL_AUTH_PRODUCTS.CAREER_TRACK,
+      });
+
       return {
         user: {
           id: user._id,
@@ -258,6 +289,70 @@ export class AuthService {
       },
       ...tokens,
     };
+  }
+
+  async ssoLoginFromCentralAuth(token: string, redirect = '/dashboard') {
+    const payload = await verifyCentralAuthToken(token, {
+      requiredProduct: CENTRAL_AUTH_PRODUCTS.CAREER_TRACK,
+    });
+
+    const user = await this.resolveUserFromCentralPayload(payload);
+    const tokens = this.buildTokens(user);
+    await userRepository.addRefreshToken(user._id.toString(), tokens.refreshToken);
+
+    return {
+      success: true,
+      redirect,
+      user: {
+        id: user._id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        role: user.role,
+        isEmailVerified: user.isEmailVerified,
+      },
+      ...tokens,
+    };
+  }
+
+  private async resolveUserFromCentralPayload(payload: CentralAuthPayload) {
+    const email = payload.email.toLowerCase().trim();
+    let user = await userRepository.findByEmail(email);
+
+    const firstName =
+      payload.firstName || payload.name?.split(' ')[0] || 'User';
+    const lastName =
+      payload.lastName || payload.name?.split(' ').slice(1).join(' ') || '';
+
+    if (!user) {
+      user = await userRepository.create({
+        email,
+        password: crypto.randomBytes(32).toString('hex'),
+        firstName,
+        lastName,
+        role: 'candidate',
+        isEmailVerified: true,
+        authProvider: 'benda_infotech',
+      });
+      await profileRepository.create(user._id.toString());
+      void syncCandidateToTalentPool(user._id.toString());
+    } else {
+      await userRepository.update(user._id.toString(), {
+        lastLogin: new Date(),
+        bendaLinked: true,
+        isEmailVerified: user.isEmailVerified || true,
+      });
+    }
+
+    void syncUserToCentralAuth({
+      email: user.email,
+      name: `${user.firstName} ${user.lastName}`.trim(),
+      roles: payload.roles || ['JOB_SEEKER'],
+      products: payload.products || [CENTRAL_AUTH_PRODUCTS.CAREER_TRACK],
+      sourceProduct: CENTRAL_AUTH_PRODUCTS.CAREER_TRACK,
+    });
+
+    return user;
   }
 }
 

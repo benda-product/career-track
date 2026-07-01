@@ -21,5 +21,6 @@ router.get('/verify-email', authController.verifyEmail);
 router.post('/forgot-password', validate(forgotPasswordSchema), authController.forgotPassword);
 router.post('/reset-password', validate(resetPasswordSchema), authController.resetPassword);
 router.post('/google', validate(googleLoginSchema), authController.googleLogin);
+router.post('/sso-login', authController.ssoLogin);
 
 export default router;

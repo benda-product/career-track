@@ -29,6 +29,8 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
 
   if (!isAuthenticated) return null;
 
+  const bendaHubUrl = process.env.NEXT_PUBLIC_BENDA_URL || 'http://localhost:3004';
+
   return (
     <SocketProvider>
       <div className="flex min-h-screen bg-slate-50/50">
@@ -41,7 +43,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
           <footer className="border-t border-slate-200/60 bg-white/50 py-3.5 px-6 md:flex md:items-center md:justify-between text-[10px] font-semibold text-slate-400">
             <div className="text-center md:text-left">
               <span>&copy; {new Date().getFullYear()} CareerTrack Candidate Suite. A product of </span>
-              <a href="https://bendainfotech.com" target="_blank" rel="noreferrer" className="text-slate-500 hover:text-primary transition-colors">
+              <a href={bendaHubUrl} target="_blank" rel="noreferrer" className="text-slate-500 hover:text-primary transition-colors">
                 Benda Infotech
               </a>
             </div>

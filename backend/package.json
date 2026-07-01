@@ -14,6 +14,7 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "@benda/ecosystem-auth": "file:../../benda-infotech/packages/ecosystem-auth",
     "axios": "^1.17.0",
     "bcryptjs": "^3.0.3",
     "cloudinary": "^2.10.0",
