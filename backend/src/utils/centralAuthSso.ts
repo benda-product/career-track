@@ -39,3 +39,4 @@ export const syncUserToCentralAuth = ecosystemAuth.syncUserToCentralAuth;
 export const provisionUserToCentralAuth = ecosystemAuth.provisionUserToCentralAuth;
 export const buildSyncPayload = ecosystemAuth.buildSyncPayload;
 export const syncLocalUserToCentralAuth = ecosystemAuth.syncLocalUserToCentralAuth;
+export const ensureLocalUserInCentralAuth = ecosystemAuth.ensureLocalUserInCentralAuth;

@@ -19,7 +19,7 @@ export function BendaAuthPanel({ product = 'career_track' }: BendaAuthPanelProps
         Registered on Benda Infotech?
       </p>
       <p className="text-xs leading-relaxed text-muted-foreground">
-        Use your Benda Infotech email and password, or Google / Apple sign-in. Direct Career Track
+        Use your Benda Infotech email and password, or Google sign-in. Direct Career Track
         login only works for accounts created here.
       </p>
       <a

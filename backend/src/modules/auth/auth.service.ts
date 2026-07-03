@@ -14,11 +14,11 @@ import { ApiError } from '../../utils/apiError';
 import { JwtPayload } from '../../types';
 import {
   verifyCentralAuthToken,
-  syncUserToCentralAuth,
-  provisionUserToCentralAuth,
+  ensureLocalUserInCentralAuth,
   CENTRAL_AUTH_PRODUCTS,
   CentralAuthPayload,
 } from '../../utils/centralAuthSso';
+import { verifyGoogleEcosystemCredentials } from '../../services/ecosystemGoogleAuth.service';
 
 interface RegisterDto {
   email: string;
@@ -67,9 +67,7 @@ export class AuthService {
 
     await profileRepository.create(user._id.toString());
     void syncCandidateToTalentPool(user._id.toString());
-    void provisionUserToCentralAuth({
-      email: user.email,
-      name: `${user.firstName} ${user.lastName}`.trim(),
+    ensureLocalUserInCentralAuth(CENTRAL_AUTH_PRODUCTS.CAREER_TRACK, user, {
       password: dto.password,
       roles: ['JOB_SEEKER'],
       products: [CENTRAL_AUTH_PRODUCTS.CAREER_TRACK],
@@ -102,9 +100,8 @@ export class AuthService {
 
     await userRepository.update(user._id.toString(), { lastLogin: new Date() });
 
-    void syncUserToCentralAuth({
-      email: user.email,
-      name: `${user.firstName} ${user.lastName}`.trim(),
+    ensureLocalUserInCentralAuth(CENTRAL_AUTH_PRODUCTS.CAREER_TRACK, user, {
+      password: dto.password,
       roles: ['JOB_SEEKER'],
       products: [CENTRAL_AUTH_PRODUCTS.CAREER_TRACK],
       sourceProduct: CENTRAL_AUTH_PRODUCTS.CAREER_TRACK,
@@ -133,13 +130,16 @@ export class AuthService {
     const isMatch = await user.comparePassword(dto.password);
     if (!isMatch) return null;
 
+    const firstName = String(user.firstName || '').trim() || 'User';
+    const lastName = String(user.lastName || '').trim() || firstName;
+
     return {
       valid: true,
       product: 'career_track',
       accountType: 'job_seeker' as const,
       email: user.email,
-      firstName: user.firstName,
-      lastName: user.lastName,
+      firstName,
+      lastName,
       role: user.role,
       userId: user._id.toString(),
     };
@@ -198,55 +198,79 @@ export class AuthService {
   }
 
   async googleLogin(idToken: string) {
-    // In production, verify idToken with Google OAuth2 API
-    // For now, decode basic payload structure
-    try {
-      const payload = JSON.parse(Buffer.from(idToken.split('.')[1], 'base64').toString());
-      const { sub: googleId, email, given_name: firstName, family_name: lastName } = payload;
-
-      let user = await userRepository.findByGoogleId(googleId);
-      if (!user) {
-        user = await userRepository.findByEmail(email);
-        if (user) {
-          await userRepository.update(user._id.toString(), { googleId, isEmailVerified: true });
-        } else {
-          user = await userRepository.create({
-            email,
-            password: generateEmailVerificationToken(),
-            firstName: firstName || 'User',
-            lastName: lastName || '',
-            googleId,
-            isEmailVerified: true,
-          });
-          await profileRepository.create(user._id.toString());
-        }
-      }
-
-      const tokens = this.buildTokens(user);
-      await userRepository.addRefreshToken(user._id.toString(), tokens.refreshToken);
-
-      void syncUserToCentralAuth({
-        email: user.email,
-        name: `${user.firstName} ${user.lastName}`.trim(),
-        roles: ['JOB_SEEKER'],
-        products: [CENTRAL_AUTH_PRODUCTS.CAREER_TRACK],
-        sourceProduct: CENTRAL_AUTH_PRODUCTS.CAREER_TRACK,
-      });
-
-      return {
-        user: {
-          id: user._id,
-          email: user.email,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          role: user.role,
-          isEmailVerified: user.isEmailVerified,
-        },
-        ...tokens,
-      };
-    } catch {
-      throw new ApiError(401, 'Invalid Google token');
+    const hub = await verifyGoogleEcosystemCredentials(idToken);
+    if (!hub?.valid) {
+      throw new ApiError(401, 'Invalid Google sign-in');
     }
+
+    const roles = Array.isArray(hub.roles) ? hub.roles : [];
+    const isRecruiter =
+      hub.accountType === 'recruiter' ||
+      hub.accountType === 'business' ||
+      roles.includes('RECRUITER') ||
+      roles.includes('BUSINESS');
+
+    if (hub.hasBendaAccount && isRecruiter) {
+      throw new ApiError(
+        403,
+        'Career Track is for job seekers. Use Talent Desk (ATS) for recruiter accounts.',
+      );
+    }
+
+    const email = hub.email.toLowerCase().trim();
+    const firstName = hub.firstName || 'User';
+    const lastName = hub.lastName || '';
+    const googleId = hub.firebaseUid || email;
+
+    let user = await userRepository.findByGoogleId(googleId);
+    if (!user) {
+      user = await userRepository.findByEmail(email);
+      if (user) {
+        await userRepository.update(user._id.toString(), {
+          googleId,
+          isEmailVerified: true,
+          bendaLinked: user.bendaLinked || hub.hasBendaAccount,
+          ...(hub.photoUrl && !user.avatar ? { avatar: hub.photoUrl } : {}),
+        });
+      } else {
+        user = await userRepository.create({
+          email,
+          password: crypto.randomBytes(32).toString('hex'),
+          firstName,
+          lastName,
+          googleId,
+          isEmailVerified: true,
+          authProvider: hub.hasBendaAccount ? 'benda_infotech' : 'local',
+          bendaLinked: hub.hasBendaAccount,
+          ...(hub.photoUrl ? { avatar: hub.photoUrl } : {}),
+        });
+        await profileRepository.create(user._id.toString());
+        void syncCandidateToTalentPool(user._id.toString());
+      }
+    }
+
+    await userRepository.update(user._id.toString(), { lastLogin: new Date() });
+
+    const tokens = this.buildTokens(user);
+    await userRepository.addRefreshToken(user._id.toString(), tokens.refreshToken);
+
+    void ensureLocalUserInCentralAuth(CENTRAL_AUTH_PRODUCTS.CAREER_TRACK, user, {
+      roles: ['JOB_SEEKER'],
+      products: [CENTRAL_AUTH_PRODUCTS.CAREER_TRACK],
+      sourceProduct: CENTRAL_AUTH_PRODUCTS.CAREER_TRACK,
+    });
+
+    return {
+      user: {
+        id: user._id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        role: user.role,
+        isEmailVerified: user.isEmailVerified,
+      },
+      ...tokens,
+    };
   }
 
   async provisionFromBendaInfotech(dto: BendaProvisionDto) {
@@ -344,9 +368,7 @@ export class AuthService {
       });
     }
 
-    void syncUserToCentralAuth({
-      email: user.email,
-      name: `${user.firstName} ${user.lastName}`.trim(),
+    void ensureLocalUserInCentralAuth(CENTRAL_AUTH_PRODUCTS.CAREER_TRACK, user, {
       roles: payload.roles || ['JOB_SEEKER'],
       products: payload.products || [CENTRAL_AUTH_PRODUCTS.CAREER_TRACK],
       sourceProduct: CENTRAL_AUTH_PRODUCTS.CAREER_TRACK,

@@ -15,6 +15,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { authService } from '@/services/auth.service';
 import { useAuthStore } from '@/store/auth.store';
+import { GoogleSignInButton } from '@/components/auth/google-sign-in-button';
 
 const loginSchema = z.object({
   email: z.string().email('Invalid email'),
@@ -58,8 +59,8 @@ export default function LoginPage() {
           <CareerTrackLogo size="xl" className="mx-auto mb-4 justify-center" />
           <CardTitle className="text-2xl">Welcome back</CardTitle>
           <CardDescription>
-            Sign in with your Career Track email and password. If you later create a Benda Infotech
-            account with the same email, your accounts will be linked automatically.
+            Sign in with Google or your Career Track email and password. If you registered on Benda
+            Infotech with the same Google account, you are signed in automatically.
           </CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit(onSubmit)}>
@@ -89,6 +90,30 @@ export default function LoginPage() {
             </div>
           </CardContent>
           <CardFooter className="flex flex-col gap-4">
+            <GoogleSignInButton
+              disabled={loading}
+              onError={setError}
+              onSuccess={async (idToken) => {
+                setLoading(true);
+                setError('');
+                try {
+                  const result = await authService.googleLogin(idToken);
+                  setAuth(result.user, result.accessToken, result.refreshToken);
+                  router.push('/dashboard');
+                } catch (err) {
+                  const apiMessage = isAxiosError(err)
+                    ? (err.response?.data as { message?: string } | undefined)?.message
+                    : undefined;
+                  setError(apiMessage || 'Google sign-in failed');
+                } finally {
+                  setLoading(false);
+                }
+              }}
+            />
+            <div className="relative w-full text-center text-xs text-muted-foreground">
+              <span className="bg-card px-2 relative z-10">or continue with email</span>
+              <div className="absolute inset-x-0 top-1/2 h-px bg-border" aria-hidden />
+            </div>
             <Button type="submit" className="w-full" disabled={loading}>
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Sign in
