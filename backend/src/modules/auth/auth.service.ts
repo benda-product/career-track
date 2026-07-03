@@ -19,6 +19,10 @@ import {
   CentralAuthPayload,
 } from '../../utils/centralAuthSso';
 import { verifyGoogleEcosystemCredentials } from '../../services/ecosystemGoogleAuth.service';
+import {
+  verifyEcosystemCredentials,
+  splitDisplayName,
+} from '../../services/ecosystemAuth.service';
 
 interface RegisterDto {
   email: string;
@@ -38,6 +42,13 @@ interface BendaProvisionDto {
   lastName: string;
   phone?: string;
   photoUrl?: string | null;
+}
+
+/** Career Track requires 8+ char passwords locally; Benda/product creds may be shorter. */
+function localPasswordForEcosystemLink(verifiedPassword: string) {
+  const password = String(verifiedPassword || '');
+  if (password.length >= 8) return password;
+  return crypto.randomBytes(32).toString('hex');
 }
 
 export class AuthService {
@@ -92,13 +103,71 @@ export class AuthService {
   }
 
   async login(dto: LoginDto) {
-    const user = await userRepository.findByEmail(dto.email);
-    if (!user || !user.isActive) throw new ApiError(401, 'Invalid credentials');
+    const normalizedEmail = dto.email.toLowerCase().trim();
+    let user = await userRepository.findByEmail(normalizedEmail);
 
-    const isMatch = await user.comparePassword(dto.password);
-    if (!isMatch) throw new ApiError(401, 'Invalid credentials');
+    if (user?.isActive) {
+      const isMatch = await user.comparePassword(dto.password);
+      if (isMatch) {
+        await userRepository.update(user._id.toString(), { lastLogin: new Date() });
 
-    await userRepository.update(user._id.toString(), { lastLogin: new Date() });
+        ensureLocalUserInCentralAuth(CENTRAL_AUTH_PRODUCTS.CAREER_TRACK, user, {
+          password: dto.password,
+          roles: ['JOB_SEEKER'],
+          products: [CENTRAL_AUTH_PRODUCTS.CAREER_TRACK],
+          sourceProduct: CENTRAL_AUTH_PRODUCTS.CAREER_TRACK,
+        });
+
+        const tokens = this.buildTokens(user);
+        await userRepository.addRefreshToken(user._id.toString(), tokens.refreshToken);
+
+        return {
+          user: {
+            id: user._id,
+            email: user.email,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            role: user.role,
+            isEmailVerified: user.isEmailVerified,
+          },
+          ...tokens,
+        };
+      }
+    }
+
+    const ecosystem = await verifyEcosystemCredentials(normalizedEmail, dto.password);
+    if (!ecosystem?.valid) {
+      throw new ApiError(401, 'Invalid credentials');
+    }
+
+    const { firstName, lastName } = splitDisplayName(normalizedEmail, ecosystem);
+    const localPassword = localPasswordForEcosystemLink(dto.password);
+
+    if (!user) {
+      user = await userRepository.create({
+        email: normalizedEmail,
+        password: localPassword,
+        firstName,
+        lastName,
+        role: 'candidate',
+        isEmailVerified: true,
+        authProvider: 'benda_infotech',
+        bendaLinked: true,
+      });
+      await profileRepository.create(user._id.toString());
+      void syncCandidateToTalentPool(user._id.toString());
+    } else if (!user.isActive) {
+      throw new ApiError(401, 'Invalid credentials');
+    } else {
+      user.password = localPassword;
+      user.bendaLinked = true;
+      user.isEmailVerified = user.isEmailVerified || true;
+      user.authProvider = user.authProvider || 'benda_infotech';
+      user.lastLogin = new Date();
+      if (!user.firstName?.trim()) user.firstName = firstName;
+      if (!user.lastName?.trim()) user.lastName = lastName;
+      await user.save();
+    }
 
     ensureLocalUserInCentralAuth(CENTRAL_AUTH_PRODUCTS.CAREER_TRACK, user, {
       password: dto.password,
