@@ -9,7 +9,7 @@ import { calculateTotalExperienceYears } from '../../utils/experience.util';
 import { scoreJobMatch, uniqueSkills } from '../../utils/jobMatch.util';
 import { logger } from '../../utils/logger';
 import { SavedJob } from './savedJob.model';
-import { RecommendedJob, RecommendedJobsResult } from './recommendation.types';
+import { RecommendedJob, RecommendedJobsResult, JobInsights } from './recommendation.types';
 
 interface CandidateContext {
   skills: string[];
@@ -184,6 +184,34 @@ export class RecommendationService {
       limit: safeLimit,
       total,
       totalPages: Math.ceil(total / safeLimit) || 0,
+    };
+  }
+
+  computeInsights(jobs: RecommendedJob[]): JobInsights {
+    if (!jobs.length) {
+      return { averageScore: 0, totalMatches: 0, topMissingSkills: [] };
+    }
+
+    const averageScore = Math.round(
+      jobs.reduce((sum, job) => sum + job.matchScore, 0) / jobs.length
+    );
+
+    const missingCounts: Record<string, number> = {};
+    jobs.forEach((job) => {
+      job.missingSkills?.forEach((skill) => {
+        missingCounts[skill] = (missingCounts[skill] || 0) + 1;
+      });
+    });
+
+    const topMissingSkills = Object.entries(missingCounts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 4)
+      .map(([skill]) => skill);
+
+    return {
+      averageScore,
+      totalMatches: jobs.length,
+      topMissingSkills,
     };
   }
 }

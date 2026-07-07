@@ -52,6 +52,27 @@ export class ResumeController {
     sendSuccess(res, session);
   });
 
+  getEntitlements = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const data = await resumeBuilderService.getEntitlements(req.user!.email);
+    sendSuccess(res, data);
+  });
+
+  getUpgradeUrl = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const user = await userRepository.findById(req.user!.userId);
+    const clientUrl = process.env.CLIENT_URL || 'http://localhost:3003';
+    const returnUrl = String(req.query.returnUrl || `${clientUrl}/resume?upgraded=resume-ai`);
+
+    const session = await resumeBuilderService.createSsoSession({
+      email: req.user!.email,
+      name: user ? `${user.firstName} ${user.lastName}`.trim() : undefined,
+      returnUrl,
+      targetPath: '/dashboard/billing',
+      sourceApp: 'Career Track',
+    });
+
+    sendSuccess(res, session);
+  });
+
   getScore = asyncHandler(async (req: AuthRequest, res: Response) => {
     const score = await resumeBuilderService.getScore(
       req.user!.email,
@@ -75,7 +96,11 @@ export class ResumeController {
       return res.status(400).json({ success: false, message: 'Resume file is required' });
     }
     const jobDescription = String(req.body?.jobDescription || '');
-    const result = await resumeBuilderService.checkAtsUpload(req.file, jobDescription);
+    const result = await resumeBuilderService.checkAtsUpload(
+      req.file,
+      jobDescription,
+      req.user!.email
+    );
     sendSuccess(res, result);
   });
 

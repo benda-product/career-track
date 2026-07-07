@@ -14,6 +14,7 @@ import { PageHeader } from '@/components/ui/page-header';
 
 import { ResumeFilters } from '@/components/resume/ResumeFilters';
 import { ResumeCard } from '@/components/resume/ResumeCard';
+import { ResumeUpgradeBanner } from '@/components/resume/ResumeUpgradeBanner';
 import { ResumeViewDialog } from '@/components/resume/resume-view-dialog';
 import { getResumeId, resumeService, type ResumeItem } from '@/services/resume.service';
 import { profileService } from '@/services/profile.service';
@@ -42,6 +43,14 @@ export default function ResumePage() {
   const [viewLoading, setViewLoading] = useState(false);
   const [viewError, setViewError] = useState('');
   const [togglingViewableId, setTogglingViewableId] = useState<string | null>(null);
+  const [upgradeMessage, setUpgradeMessage] = useState('');
+
+  useEffect(() => {
+    if (searchParams.get('upgraded') === 'resume-ai') {
+      setUpgradeMessage('Resume AI plan updated. Your entitlements are now active in Career Track.');
+      void queryClient.invalidateQueries({ queryKey: ['resume-entitlements'] });
+    }
+  }, [searchParams, queryClient]);
 
   const { data: resumes, isLoading, error } = useQuery({
     queryKey: ['resumes'],
@@ -49,6 +58,14 @@ export default function ResumePage() {
     enabled: hasHydrated && isAuthenticated,
     retry: false,
   });
+
+  const { data: resumeEntitlements } = useQuery({
+    queryKey: ['resume-entitlements'],
+    queryFn: resumeService.getEntitlements,
+    enabled: hasHydrated && isAuthenticated,
+  });
+
+  const canCreateResume = resumeEntitlements?.canCreateResume !== false;
 
   const { data: profile } = useQuery({
     queryKey: ['profile'],
@@ -177,6 +194,10 @@ export default function ResumePage() {
 
   async function openCreate() {
     setActionError('');
+    if (!canCreateResume) {
+      setActionError('Free plan includes 1 resume. Upgrade to Pro for unlimited resume versions.');
+      return;
+    }
     try {
       await resumeService.openInResumeBuilder({
         type: 'create',
@@ -206,6 +227,10 @@ export default function ResumePage() {
 
     setActionError('');
     setDeleteError('');
+    if (!canCreateResume) {
+      setActionError('Free plan includes 1 resume. Upgrade to Pro for unlimited resume versions.');
+      return;
+    }
     setDuplicatingId(id);
 
     try {
@@ -331,12 +356,20 @@ export default function ResumePage() {
         title="My Resumes"
         description="View and manage your created resumes, track their ATS scores, and toggle recruiter visibility."
         action={
-          <Button onClick={openCreate}>
+          <Button onClick={openCreate} disabled={!canCreateResume}>
             <Plus className="mr-2 h-4 w-4" />
             Create Resume
           </Button>
         }
       />
+
+      <ResumeUpgradeBanner />
+
+      {upgradeMessage ? (
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+          {upgradeMessage}
+        </div>
+      ) : null}
 
       {(error || deleteError || actionError) && (
         <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">

@@ -100,6 +100,17 @@ export interface SkillCertificateVerification {
   };
 }
 
+export interface SkillCheckEntitlements {
+  planType: string;
+  planLabel: string;
+  unlimitedRetakes: boolean;
+  attemptsPerLevel: number | null;
+  billingSource: string;
+  includedViaCareerPro: boolean;
+  directPlanType: string;
+  currentPeriodEnd?: string | null;
+}
+
 export const skillCheckService = {
   getSsoRedirect: async (options: { returnUrl?: string; targetPath?: string }) => {
     const res = await apiClient.get<ApiResponse<{ token: string; url: string }>>(
@@ -115,7 +126,7 @@ export const skillCheckService = {
   },
 
   openInSkillTest: async (options: {
-    action: 'take' | 'my-tests' | 'certificates';
+    action: 'take' | 'my-tests' | 'certificates' | 'upgrade-plans';
     returnUrl?: string;
   }) => {
     const targetPath = getSkillTestPath(options.action);
@@ -124,6 +135,21 @@ export const skillCheckService = {
       returnUrl: options.returnUrl,
     });
     window.location.href = session.url;
+  },
+
+  openUpgradePlans: async (returnUrl?: string) => {
+    const destination =
+      returnUrl || `${window.location.origin}/skill-check?upgraded=skillcheck`;
+    const res = await apiClient.get<ApiResponse<{ token: string; url: string }>>(
+      '/skill-check/upgrade-url',
+      { params: { returnUrl: destination } }
+    );
+    window.location.href = res.data.data!.url;
+  },
+
+  getEntitlements: async () => {
+    const res = await apiClient.get<ApiResponse<SkillCheckEntitlements>>('/skill-check/entitlements');
+    return res.data.data!;
   },
 
   getSummary: async () => {

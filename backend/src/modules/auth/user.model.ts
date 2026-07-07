@@ -20,6 +20,11 @@ export interface IUser extends Document {
   isActive: boolean;
   authProvider?: 'local' | 'benda_infotech';
   bendaLinked?: boolean;
+  subscriptionPlan?: 'free' | 'pro';
+  paypalSubscriptionId?: string;
+  subscriptionCurrentPeriodEnd?: Date;
+  coachingCreditsRemaining?: number;
+  coachingCreditsPeriod?: string;
   comparePassword(candidatePassword: string): Promise<boolean>;
 }
 
@@ -42,6 +47,11 @@ const userSchema = new Schema<IUser>(
     isActive: { type: Boolean, default: true },
     authProvider: { type: String, enum: ['local', 'benda_infotech'], default: 'local' },
     bendaLinked: { type: Boolean, default: false },
+    subscriptionPlan: { type: String, enum: ['free', 'pro'], default: 'free' },
+    paypalSubscriptionId: String,
+    subscriptionCurrentPeriodEnd: Date,
+    coachingCreditsRemaining: { type: Number, default: 0 },
+    coachingCreditsPeriod: String,
   },
   { timestamps: true }
 );

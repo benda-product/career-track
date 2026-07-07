@@ -11,4 +11,11 @@ router.get(
   recommendationController.getRecommendedJobs
 );
 
+router.get(
+  '/insights',
+  authenticate,
+  authorize('candidate'),
+  recommendationController.getInsights
+);
+
 export default router;

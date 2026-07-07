@@ -83,6 +83,18 @@ export class ApplicationRepository {
       byStage: Object.fromEntries(stages.map((s, i) => [s, counts[i]])),
     };
   }
+
+  async getBasicAnalytics(userId: string) {
+    const total = await Application.countDocuments({ userId, isSaved: false });
+    return {
+      totalApplications: total,
+      shortlisted: 0,
+      interviews: 0,
+      offers: 0,
+      successRate: 0,
+      byStage: {},
+    };
+  }
 }
 
 export const applicationRepository = new ApplicationRepository();

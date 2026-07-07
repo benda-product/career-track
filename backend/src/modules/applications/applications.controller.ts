@@ -1,6 +1,7 @@
 import { Response } from 'express';
 import { AuthRequest } from '../../middlewares/auth.middleware';
 import { applicationRepository } from '../../repositories/application.repository';
+import { planService } from '../../services/plan.service';
 import { asyncHandler } from '../../utils/asyncHandler';
 import { sendSuccess } from '../../utils/response';
 import { ApiError } from '../../utils/apiError';
@@ -37,6 +38,7 @@ export class ApplicationsController {
   });
 
   getAnalytics = asyncHandler(async (req: AuthRequest, res: Response) => {
+    await planService.assertFeature(req.user!.userId, 'advanced_analytics');
     const analytics = await applicationRepository.getAnalytics(req.user!.userId);
     sendSuccess(res, analytics);
   });

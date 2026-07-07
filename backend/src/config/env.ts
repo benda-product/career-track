@@ -45,4 +45,13 @@ export const env = {
     clientId: process.env.GOOGLE_CLIENT_ID || '',
     clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
   },
+  billing: {
+    devMode: process.env.BILLING_DEV_MODE === 'true',
+    paypal: {
+      clientId: process.env.PAYPAL_CLIENT_ID || '',
+      clientSecret: process.env.PAYPAL_CLIENT_SECRET || '',
+      mode: process.env.PAYPAL_MODE || 'sandbox',
+      webhookId: process.env.PAYPAL_WEBHOOK_ID || '',
+    },
+  },
 };

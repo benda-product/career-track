@@ -9,6 +9,7 @@ import { swaggerSpec } from './config/swagger';
 import routes from './routes';
 import { errorHandler, notFoundHandler } from './middlewares/error.middleware';
 import { mongoSanitizeMiddleware } from './middlewares/sanitize.middleware';
+import { paypalWebhook } from './modules/billing/billing.controller';
 
 const app = express();
 
@@ -19,6 +20,13 @@ app.use(
     credentials: true,
   })
 );
+
+app.post(
+  '/api/v1/billing/webhook',
+  express.raw({ type: 'application/json' }),
+  paypalWebhook
+);
+
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());

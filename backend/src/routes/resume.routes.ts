@@ -9,6 +9,8 @@ router.use(authenticate, authorize('candidate'));
 
 router.get('/', resumeController.getResumes);
 router.get('/sso-url', resumeController.getSsoUrl);
+router.get('/entitlements', resumeController.getEntitlements);
+router.get('/upgrade-url', resumeController.getUpgradeUrl);
 router.post('/create', resumeController.createResume);
 router.get('/templates', resumeController.getTemplates);
 router.get('/templates/:id', resumeController.getTemplate);

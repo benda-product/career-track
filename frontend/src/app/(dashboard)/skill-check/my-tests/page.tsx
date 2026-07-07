@@ -22,6 +22,7 @@ import { StatCard } from '@/components/ui/stat-card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { TestHistoryList } from '@/components/skill-check/TestHistoryList';
+import { SkillCheckUpgradeBanner } from '@/components/skill-check/SkillCheckUpgradeBanner';
 import { skillCheckService } from '@/services/skillCheck.service';
 import { formatCategory } from '@/components/skill-check/test-result-utils';
 import { cn } from '@/lib/utils';
@@ -139,6 +140,8 @@ export default function MyTestsPage() {
           </div>
         }
       />
+
+      <SkillCheckUpgradeBanner />
 
       {loadError && (
         <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 flex items-center gap-2">

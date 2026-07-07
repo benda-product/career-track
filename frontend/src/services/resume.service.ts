@@ -41,6 +41,29 @@ export function getPrimaryResumeId(resumes: ResumeItem[] | undefined): string | 
   return getResumeId(resumes[0]);
 }
 
+export interface ResumeEntitlements {
+  plan: string;
+  planLabel: string;
+  directPlan?: string;
+  billingSource?: string;
+  includedViaCareerPro?: boolean;
+  maxResumes: number | null;
+  resumeCount: number;
+  canCreateResume: boolean;
+  featureFlags?: {
+    premiumTemplates?: boolean;
+    coverLetter?: boolean;
+    resumeAnalytics?: boolean;
+    jdMatching?: boolean;
+    linkedinOptimizer?: boolean;
+    interviewPrep?: boolean;
+    skillGap?: boolean;
+    careerCoaching?: boolean;
+    multiFormatExport?: boolean;
+    unlimitedResumes?: boolean;
+  };
+}
+
 export const resumeService = {
   getResumes: async () => {
     const res = await apiClient.get<ApiResponse<ResumeItem[]>>('/resume');
@@ -73,6 +96,20 @@ export const resumeService = {
       returnUrl: options.returnUrl,
     });
     window.location.href = session.url;
+  },
+
+  openUpgradePlans: async (returnUrl?: string) => {
+    const destination = returnUrl || `${window.location.origin}/resume?upgraded=resume-ai`;
+    const res = await apiClient.get<ApiResponse<{ token: string; url: string }>>(
+      '/resume/upgrade-url',
+      { params: { returnUrl: destination } }
+    );
+    window.location.href = res.data.data!.url;
+  },
+
+  getEntitlements: async () => {
+    const res = await apiClient.get<ApiResponse<ResumeEntitlements>>('/resume/entitlements');
+    return res.data.data!;
   },
 
   createResume: async (data: Record<string, unknown>) => {

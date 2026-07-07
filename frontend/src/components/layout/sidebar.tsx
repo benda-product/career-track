@@ -26,6 +26,8 @@ import {
   Medal,
   ListChecks,
   BookOpen,
+  CreditCard,
+  MessageSquare,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { CareerTrackLogo } from '@/components/brand/career-track-logo';
@@ -54,6 +56,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
       { href: '/profile', label: 'My Profile', icon: User },
+      { href: '/mock-interview', label: 'Mock Interview', icon: MessageSquare },
     ],
   },
   {
@@ -175,6 +178,7 @@ const NAV_GROUPS: NavGroup[] = [
     collapsible: false,
     items: [
       { href: '/notifications', label: 'Notifications', icon: Bell },
+      { href: '/billing', label: 'Billing', icon: CreditCard },
       { href: '/settings', label: 'Settings', icon: Settings },
     ],
   },

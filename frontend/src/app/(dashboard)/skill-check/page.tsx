@@ -1,6 +1,7 @@
 'use client';
 
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { ClipboardCheck, History, PlayCircle, RefreshCw, Trophy, Target, AlertCircle, Award } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -11,13 +12,23 @@ import { StatCard } from '@/components/ui/stat-card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent } from '@/components/ui/card';
 import { SkillPerformanceSummary } from '@/components/skill-check/SkillPerformanceSummary';
+import { SkillCheckUpgradeBanner } from '@/components/skill-check/SkillCheckUpgradeBanner';
 import { TestResultCard } from '@/components/skill-check/TestResultCard';
 import { skillCheckService } from '@/services/skillCheck.service';
 
 export default function ViewResultPage() {
+  const searchParams = useSearchParams();
   const queryClient = useQueryClient();
   const [syncing, setSyncing] = useState(false);
   const [syncError, setSyncError] = useState('');
+  const [upgradeMessage, setUpgradeMessage] = useState('');
+
+  useEffect(() => {
+    if (searchParams.get('upgraded') === 'skillcheck') {
+      setUpgradeMessage('SkillCheck plan updated. Your entitlements are now active in Career Track.');
+      void queryClient.invalidateQueries({ queryKey: ['skill-check-entitlements'] });
+    }
+  }, [searchParams, queryClient]);
 
   const { data: tests, isLoading, error, refetch, isFetching } = useQuery({
     queryKey: ['skill-check-history'],
@@ -91,6 +102,14 @@ export default function ViewResultPage() {
           </div>
         }
       />
+
+      <SkillCheckUpgradeBanner />
+
+      {upgradeMessage ? (
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+          {upgradeMessage}
+        </div>
+      ) : null}
 
       {loadError && (
         <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 flex items-center gap-2">

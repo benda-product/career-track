@@ -87,8 +87,22 @@ class ResumeBuilderService {
     name?: string;
     returnUrl?: string;
     targetPath?: string;
+    sourceApp?: string;
   }) {
     return this.request<{ token: string; url: string }>('POST', '/internal/sso-session', input);
+  }
+
+  async getEntitlements(email: string) {
+    return this.request<{
+      plan: string;
+      planLabel: string;
+      directPlan?: string;
+      billingSource?: string;
+      includedViaCareerPro?: boolean;
+      maxResumes: number | null;
+      resumeCount: number;
+      canCreateResume: boolean;
+    }>('GET', `/internal/entitlements?email=${encodeURIComponent(email)}`);
   }
 
   async downloadPdf(email: string, resumeId: string): Promise<Buffer> {
@@ -130,7 +144,8 @@ class ResumeBuilderService {
 
   async checkAtsUpload(
     file: Express.Multer.File,
-    jobDescription?: string
+    jobDescription?: string,
+    email?: string
   ): Promise<ResumeAtsScore> {
     const form = new FormData();
     form.append('resume', file.buffer, {
@@ -139,6 +154,9 @@ class ResumeBuilderService {
     });
     if (jobDescription?.trim()) {
       form.append('jobDescription', jobDescription.trim());
+    }
+    if (email?.trim()) {
+      form.append('email', email.trim());
     }
 
     try {

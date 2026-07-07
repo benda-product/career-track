@@ -39,6 +39,27 @@ export class SkillCheckController {
     sendSuccess(res, session);
   });
 
+  getEntitlements = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const data = await skillTestService.getCandidateEntitlements(req.user!.email);
+    sendSuccess(res, data);
+  });
+
+  getUpgradeUrl = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const user = await userRepository.findById(req.user!.userId);
+    const clientUrl = process.env.CLIENT_URL || 'http://localhost:3003';
+    const returnUrl = String(req.query.returnUrl || `${clientUrl}/skill-check?upgraded=skillcheck`);
+
+    const session = await skillTestService.createSsoSession({
+      email: req.user!.email,
+      name: user ? `${user.firstName} ${user.lastName}`.trim() : undefined,
+      returnUrl,
+      targetPath: '/candidatePlans',
+      sourceApp: 'Career Track',
+    });
+
+    sendSuccess(res, session);
+  });
+
   getSummary = asyncHandler(async (req: AuthRequest, res: Response) => {
     const user = await userRepository.findById(req.user!.userId);
     if (!user) {

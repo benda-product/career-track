@@ -29,6 +29,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { AtsScoreReport } from '@/components/resume/AtsScoreReport';
+import { ResumeUpgradeBanner } from '@/components/resume/ResumeUpgradeBanner';
 import { getResumeId, resumeService, type ResumeAtsScore, type ResumeItem } from '@/services/resume.service';
 import { cn } from '@/lib/utils';
 
@@ -60,6 +61,13 @@ export default function AtsCheckPage() {
     queryKey: ['resumes'],
     queryFn: resumeService.getResumes,
   });
+
+  const { data: resumeEntitlements } = useQuery({
+    queryKey: ['resume-entitlements'],
+    queryFn: resumeService.getEntitlements,
+  });
+
+  const canMatchJobDescription = Boolean(resumeEntitlements?.featureFlags?.jdMatching);
 
   const resumeList = (resumes as ResumeItem[] | undefined) || [];
 
@@ -132,6 +140,10 @@ export default function AtsCheckPage() {
       setChecking(true);
 
       try {
+        if (withJobDescription && !canMatchJobDescription) {
+          throw new Error('Pro plan required for job-description matching. Upgrade in Billing.');
+        }
+
         if (source === 'saved') {
           if (!selectedResumeId) {
             throw new Error('Please select a saved resume first.');
@@ -160,7 +172,7 @@ export default function AtsCheckPage() {
         setChecking(false);
       }
     },
-    [source, selectedResumeId, uploadFile, jobDescription]
+    [source, selectedResumeId, uploadFile, jobDescription, canMatchJobDescription]
   );
 
   const resetScanner = () => {
@@ -180,6 +192,8 @@ export default function AtsCheckPage() {
         title="Check ATS Compatibility"
         description="Verify how parser bots scan your resume and optimize content relevance matching industry guidelines"
       />
+
+      <ResumeUpgradeBanner />
 
       {/* Main scanner view wrapper */}
       <AnimatePresence mode="wait">
@@ -435,11 +449,11 @@ export default function AtsCheckPage() {
                     <Button
                       type="button"
                       variant="outline"
-                      disabled={checking || !canRunScan || !jobDescription.trim()}
+                      disabled={checking || !canRunScan || !jobDescription.trim() || !canMatchJobDescription}
                       onClick={() => void runCheck(true)}
                       className="flex-1 border-border/80 hover:bg-muted/30 font-semibold h-10 text-foreground"
                     >
-                      Compare against Job Spec
+                      {canMatchJobDescription ? 'Compare against Job Spec' : 'Job match (Pro required)'}
                     </Button>
                   </div>
 

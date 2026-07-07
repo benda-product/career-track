@@ -83,6 +83,19 @@ class SkillTestService {
     );
   }
 
+  async getCandidateEntitlements(email: string) {
+    return this.request<{
+      planType: string;
+      planLabel: string;
+      unlimitedRetakes: boolean;
+      attemptsPerLevel: number | null;
+      billingSource: string;
+      includedViaCareerPro: boolean;
+      directPlanType: string;
+      currentPeriodEnd?: string | null;
+    }>('GET', `/internal/candidate-entitlements?email=${encodeURIComponent(email)}`);
+  }
+
   async getPassedTestsByEmail(email: string) {
     return this.request<SkillTestRecord[]>(
       'GET',

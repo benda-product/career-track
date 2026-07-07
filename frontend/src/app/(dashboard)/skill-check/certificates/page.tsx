@@ -12,6 +12,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent } from '@/components/ui/card';
 import { CertificateCard } from '@/components/skill-check/CertificateCard';
 import { CertificateVerifyPanel } from '@/components/skill-check/CertificateVerifyPanel';
+import { SkillCheckUpgradeBanner } from '@/components/skill-check/SkillCheckUpgradeBanner';
 import { skillCheckService } from '@/services/skillCheck.service';
 
 export default function CertificatesPage() {
@@ -89,6 +90,8 @@ export default function CertificatesPage() {
           </div>
         }
       />
+
+      <SkillCheckUpgradeBanner />
 
       {loadError && (
         <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 flex items-center gap-2">

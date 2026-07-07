@@ -23,3 +23,9 @@ export interface RecommendedJobsResult {
   total: number;
   totalPages: number;
 }
+
+export interface JobInsights {
+  averageScore: number;
+  totalMatches: number;
+  topMissingSkills: string[];
+}

@@ -17,4 +17,15 @@ export const recommendedJobsService = {
       },
     };
   },
+
+  getInsights: async () => {
+    const res = await apiClient.get<
+      ApiResponse<{
+        averageScore: number;
+        totalMatches: number;
+        topMissingSkills: string[];
+      }>
+    >('/recommended-jobs/insights');
+    return res.data.data!;
+  },
 };

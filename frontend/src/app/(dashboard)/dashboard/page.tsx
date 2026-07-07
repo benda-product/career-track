@@ -45,6 +45,7 @@ import { ButtonLink } from '@/components/ui/link-button';
 import { dashboardService } from '@/services/dashboard.service';
 import { APPLICATION_STAGES } from '@/constants';
 import { useAuthStore } from '@/store/auth.store';
+import { usePlanEntitlements } from '@/hooks/use-plan-entitlements';
 
 // Color map for donut pipeline charts (Benda green/amber/blue branding)
 const PIE_COLORS = {
@@ -59,6 +60,8 @@ const PIE_COLORS = {
 
 export default function DashboardPage() {
   const { user } = useAuthStore();
+  const { data: entitlements } = usePlanEntitlements();
+  const advancedAnalytics = Boolean(entitlements?.featureFlags?.advancedAnalytics);
   const { data, isLoading } = useQuery({
     queryKey: ['dashboard'],
     queryFn: dashboardService.getDashboard,
@@ -171,6 +174,21 @@ export default function DashboardPage() {
       </div>
 
       {/* Central BI Graph Panel */}
+      {!advancedAnalytics ? (
+        <Card className="border-primary/20 bg-primary/5">
+          <CardContent className="flex flex-col gap-4 p-6 sm:flex-row sm:items-center sm:justify-between">
+            <div className="space-y-1">
+              <p className="text-sm font-semibold text-slate-900">Advanced analytics is a Career Pro feature</p>
+              <p className="text-xs text-muted-foreground">
+                Upgrade to unlock pipeline breakdowns, application velocity trends, and success-rate insights.
+              </p>
+            </div>
+            <Link href="/billing?plan=pro">
+              <Button size="sm">Upgrade to Career Pro</Button>
+            </Link>
+          </CardContent>
+        </Card>
+      ) : (
       <div className="grid gap-6 lg:grid-cols-3">
         
         {/* Modern Area Chart for Application & Views Trend */}
@@ -268,6 +286,7 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+      )}
 
       {/* Grid of lists and Donut Breakdown */}
       <div className="grid gap-6 lg:grid-cols-3">
@@ -306,6 +325,7 @@ export default function DashboardPage() {
         </Card>
 
         {/* Pipeline Distribution Donut Chart (BI Widget) */}
+        {advancedAnalytics ? (
         <Card className="border-slate-200/80 bg-white shadow-sm flex flex-col justify-between">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <div>
@@ -372,6 +392,19 @@ export default function DashboardPage() {
             </ButtonLink>
           </CardContent>
         </Card>
+        ) : (
+          <Card className="border-primary/20 bg-primary/5">
+            <CardContent className="flex flex-col items-center justify-center gap-3 p-8 text-center">
+              <p className="text-sm font-semibold text-slate-900">Pipeline analytics</p>
+              <p className="text-xs text-muted-foreground max-w-xs">
+                Career Pro unlocks stage-by-stage application breakdowns.
+              </p>
+              <Link href="/billing?plan=pro">
+                <Button size="sm">Upgrade</Button>
+              </Link>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Recommended Jobs Widget */}
         <Card className="border-slate-200/80 bg-white shadow-sm">

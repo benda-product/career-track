@@ -9,6 +9,8 @@ import dashboardRoutes from './dashboard.routes';
 import recommendedJobsRoutes from './recommendedJobs.routes';
 import skillCheckRoutes from './skillCheck.routes';
 import coursesRoutes from './courses.routes';
+import billingRoutes from './billing.routes';
+import coachingRoutes from './coaching.routes';
 import internalRoutes from './internal.routes';
 
 const router = Router();
@@ -24,6 +26,9 @@ router.use('/dashboard', dashboardRoutes);
 router.use('/recommended-jobs', recommendedJobsRoutes);
 router.use('/skill-check', skillCheckRoutes);
 router.use('/courses', coursesRoutes);
+router.use('/billing', billingRoutes);
+router.use('/coaching', coachingRoutes);
+router.use('/mock-interview', coachingRoutes);
 
 router.get('/health', (_req, res) => {
   res.json({ success: true, message: 'CareerTrack API is running', timestamp: new Date().toISOString() });

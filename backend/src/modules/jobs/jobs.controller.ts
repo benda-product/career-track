@@ -1,6 +1,8 @@
 import { Response } from 'express';
 import { AuthRequest } from '../../middlewares/auth.middleware';
 import { jobsService } from './jobs.service';
+import { planService } from '../../services/plan.service';
+import { hasPlanFeature, FREE_RECOMMENDED_JOBS_LIMIT, PRO_RECOMMENDED_JOBS_LIMIT } from '../../constants/plans';
 import { asyncHandler } from '../../utils/asyncHandler';
 import { sendSuccess } from '../../utils/response';
 import { getParam } from '../../utils/params';
@@ -60,9 +62,15 @@ export class JobsController {
 
   getRecommended = asyncHandler(async (req: AuthRequest, res: Response) => {
     const page = parseInt(req.query.page as string, 10) || 1;
-    const limit = parseInt(req.query.limit as string, 10) || 10;
+    let limit = parseInt(req.query.limit as string, 10) || 10;
+    const plan = await planService.getUserPlan(req.user!.userId);
+    const maxLimit = plan === 'pro' ? PRO_RECOMMENDED_JOBS_LIMIT : FREE_RECOMMENDED_JOBS_LIMIT;
+    limit = Math.min(limit, maxLimit);
     const result = await jobsService.getRecommendedJobs(req.user!.userId, page, limit);
-    sendSuccess(res, result.jobs, 'Recommended jobs fetched', 200, {
+    const jobs = hasPlanFeature(plan, 'priority_insights')
+      ? result.jobs
+      : result.jobs.map((job) => ({ ...job, missingSkills: [] }));
+    sendSuccess(res, jobs, 'Recommended jobs fetched', 200, {
       page: result.page,
       limit: result.limit,
       total: result.total,

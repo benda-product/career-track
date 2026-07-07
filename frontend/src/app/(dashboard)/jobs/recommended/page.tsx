@@ -16,6 +16,8 @@ import { recommendedJobsService } from '@/services/recommendedJobs.service';
 import { jobsService } from '@/services/jobs.service';
 import { profileService } from '@/services/profile.service';
 import { resumeService, getPrimaryResumeId, getResumeId } from '@/services/resume.service';
+import { usePlanEntitlements } from '@/hooks/use-plan-entitlements';
+import Link from 'next/link';
 import { isAxiosError } from 'axios';
 import { RecommendedJob } from '@/types';
 import { cn } from '@/lib/utils';
@@ -36,12 +38,22 @@ export default function RecommendedJobsPage() {
   const [successMessage, setSuccessMessage] = useState('');
   const [applyError, setApplyError] = useState('');
   const [redirecting, setRedirecting] = useState(false);
+  const { data: entitlements } = usePlanEntitlements();
+  const jobFetchLimit = entitlements?.maxRecommendedJobs ?? 20;
+  const hasPriorityInsights = Boolean(entitlements?.featureFlags?.priorityInsights);
 
-  // Fetch Recommended Jobs (limit 100 to allow local search and slider filter)
+  // Fetch recommended jobs (limit capped by plan)
   const { data, isLoading, isError, error, isFetching, refetch } = useQuery({
-    queryKey: ['recommended-jobs'],
-    queryFn: () => recommendedJobsService.getRecommendedJobs(1, 100),
+    queryKey: ['recommended-jobs', jobFetchLimit],
+    queryFn: () => recommendedJobsService.getRecommendedJobs(1, jobFetchLimit),
     retry: 1,
+  });
+
+  const { data: insights } = useQuery({
+    queryKey: ['recommended-jobs-insights', jobFetchLimit],
+    queryFn: () => recommendedJobsService.getInsights(),
+    enabled: hasPriorityInsights,
+    retry: false,
   });
 
   // Fetch Profile & Resumes for Apply Dialog
@@ -140,28 +152,22 @@ export default function RecommendedJobsPage() {
     }
   };
 
-  // Compute Metrics Gaps and Averages based on current raw recommended jobs
+  // Priority insights (Career Pro) — fetched from gated API
   const metrics = useMemo(() => {
-    if (!rawJobs.length) return { averageScore: 0, topMissing: [] };
+    if (hasPriorityInsights && insights) {
+      return {
+        averageScore: insights.averageScore,
+        topMissing: insights.topMissingSkills,
+        totalMatches: insights.totalMatches,
+      };
+    }
 
-    const totalScore = rawJobs.reduce((sum, j) => sum + j.matchScore, 0);
-    const averageScore = Math.round(totalScore / rawJobs.length);
-
-    // Aggregate missing skills
-    const missingCounts: Record<string, number> = {};
-    rawJobs.forEach((job) => {
-      job.missingSkills?.forEach((skill) => {
-        missingCounts[skill] = (missingCounts[skill] || 0) + 1;
-      });
-    });
-
-    const topMissing = Object.entries(missingCounts)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 4)
-      .map((entry) => entry[0]);
-
-    return { averageScore, topMissing };
-  }, [rawJobs]);
+    return {
+      averageScore: 0,
+      topMissing: [] as string[],
+      totalMatches: rawJobs.length,
+    };
+  }, [hasPriorityInsights, insights, rawJobs.length]);
 
   // Client Side Filtering and Sorting
   const filteredJobs = useMemo(() => {
@@ -227,7 +233,28 @@ export default function RecommendedJobsPage() {
         }
       />
 
-      {/* Success / Error Toast notification blocks */}
+      {entitlements?.plan === 'free' ? (
+        <div className="flex flex-col gap-3 rounded-2xl border border-primary/20 bg-primary/5 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-sm font-semibold text-slate-900">Unlock priority job insights</p>
+            <p className="text-xs text-muted-foreground">
+              Career Pro shows match health, skill gap analysis, up to 100 matches, advanced analytics, and mock interview credits.
+            </p>
+          </div>
+          <Link href="/billing?plan=pro">
+            <Button size="sm">Upgrade to Career Pro</Button>
+          </Link>
+        </div>
+      ) : null}
+
+      {!hasPriorityInsights ? (
+        <div className="rounded-2xl border border-dashed border-border/80 bg-muted/20 p-4 text-center">
+          <p className="text-xs text-muted-foreground">
+            Match health and skill gap insights are available on Career Pro.
+          </p>
+        </div>
+      ) : null}
+
       {successMessage && (
         <div className="flex items-center gap-2 rounded-2xl border border-emerald-100 bg-emerald-50/50 p-4 text-xs text-emerald-800 shadow-sm">
           <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />
@@ -277,8 +304,8 @@ export default function RecommendedJobsPage() {
         </Card>
       ) : (
         <>
-          {/* THREE-COLUMN STATS PANEL */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {hasPriorityInsights ? (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Card className="border-border/80 shadow-sm">
               <CardContent className="p-4 flex items-center gap-4">
                 <div className="p-3 bg-primary/10 rounded-2xl text-primary shrink-0">
@@ -327,6 +354,7 @@ export default function RecommendedJobsPage() {
               </CardContent>
             </Card>
           </div>
+          ) : null}
 
           {/* CONTROLS & FILTER TOOLBAR */}
           <Card className="border-border/80 shadow-sm">

@@ -8,6 +8,7 @@ import { ButtonLink } from '@/components/ui/link-button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { resumeService } from '@/services/resume.service';
+import { ResumeUpgradeBanner } from '@/components/resume/ResumeUpgradeBanner';
 
 export default function ResumeTemplatesPage() {
   const { data: templates, isLoading } = useQuery({
@@ -26,6 +27,7 @@ export default function ResumeTemplatesPage() {
   return (
     <div className="space-y-6">
       <PageHeader title="Resume Templates" description="Choose a professional template for your resume" />
+      <ResumeUpgradeBanner />
       {isLoading ? (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-64" />)}

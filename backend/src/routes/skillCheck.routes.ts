@@ -9,6 +9,8 @@ router.post('/sync', requireInternalKey, skillCheckController.syncResults);
 
 router.use(authenticate, authorize('candidate'));
 router.get('/sso-url', skillCheckController.getSsoUrl);
+router.get('/entitlements', skillCheckController.getEntitlements);
+router.get('/upgrade-url', skillCheckController.getUpgradeUrl);
 router.get('/summary', skillCheckController.getSummary);
 router.get('/history', skillCheckController.getHistory);
 router.get('/certificates', skillCheckController.getCertificates);
