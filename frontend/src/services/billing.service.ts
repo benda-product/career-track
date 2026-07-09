@@ -22,6 +22,22 @@ export interface PlanEntitlements {
     skillCheck: { tier: string; source: string; label: string } | null;
   };
   subscriptionCurrentPeriodEnd?: string | Date | null;
+  subscriptionCancelAtPeriodEnd?: boolean;
+}
+
+export interface BillingInvoice {
+  id: string;
+  invoiceNumber: string;
+  planKey: string;
+  planLabel: string;
+  amount: number;
+  currency: string;
+  billingCycle: 'monthly' | 'annual';
+  status: 'paid' | 'refunded' | 'failed';
+  paymentMethod: 'paypal' | 'demo';
+  description: string;
+  paidAt: string | Date;
+  paypalSubscriptionId?: string | null;
 }
 
 export interface CheckoutResult {
@@ -32,6 +48,12 @@ export interface CheckoutResult {
   planLabel?: string;
   url?: string | null;
   subscriptionId?: string;
+  checkoutMode?: 'paypal_sdk' | 'paypal_sdk_order';
+  paypalClientId?: string;
+  paypalPlanId?: string;
+  customId?: string;
+  orderAmount?: string;
+  orderDescription?: string;
 }
 
 export const billingService = {
@@ -65,5 +87,50 @@ export const billingService = {
       { params: { subscriptionId } }
     );
     return res.data.data!;
+  },
+
+  cancelSubscription: async () => {
+    const res = await apiClient.post<
+      ApiResponse<{
+        cancelled: boolean;
+        cancelAtPeriodEnd?: boolean;
+        accessUntil?: string | Date;
+        plan: PlanKey;
+        planLabel: string;
+        message: string;
+      }>
+    >('/billing/cancel');
+    return res.data.data!;
+  },
+
+  listInvoices: async () => {
+    const res = await apiClient.get<ApiResponse<BillingInvoice[]>>('/billing/invoices');
+    return res.data.data!;
+  },
+
+  downloadInvoicePdf: async (invoiceId: string, invoiceNumber: string) => {
+    const res = await apiClient.get(`/billing/invoices/${invoiceId}/pdf`, {
+      responseType: 'blob',
+    });
+    const blob = res.data as Blob;
+    const contentType = String(res.headers['content-type'] || '');
+    if (!contentType.includes('application/pdf')) {
+      const text = await blob.text();
+      try {
+        const parsed = JSON.parse(text) as { message?: string };
+        throw new Error(parsed.message || 'Unable to download invoice.');
+      } catch (error) {
+        if (error instanceof Error && error.message !== 'Unable to download invoice.') throw error;
+        throw new Error(text || 'Unable to download invoice.');
+      }
+    }
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${invoiceNumber}.pdf`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
   },
 };

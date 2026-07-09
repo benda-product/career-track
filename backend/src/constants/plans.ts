@@ -20,6 +20,11 @@ export function isPayPalEnabled() {
   return Boolean(process.env.PAYPAL_CLIENT_ID?.trim() && process.env.PAYPAL_CLIENT_SECRET?.trim());
 }
 
+/** True when checkout/cancel should call live PayPal (credentials set and dev mode off). */
+export function isLivePayPalCheckout() {
+  return isPayPalEnabled() && !isBillingDevMode();
+}
+
 export const PLAN_CATALOG = {
   free: {
     key: 'free' as const,

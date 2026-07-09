@@ -2,8 +2,13 @@ import {
   ANNUAL_DISCOUNT,
   getPlanByKey,
   isBillingDevMode,
+  normalizePlan,
+  PLAN_CATALOG,
 } from '../constants/plans';
 import { planService } from './plan.service';
+import { invoiceService } from './invoice.service';
+import { BillingInvoice } from '../modules/billing/billing-invoice.model';
+import { User } from '../modules/auth/user.model';
 
 const planIdCache = new Map<string, string>();
 let accessTokenCache: { token: string | null; expiresAt: number } = { token: null, expiresAt: 0 };
@@ -16,6 +21,10 @@ function getPayPalApiBase() {
 
 export function isPayPalConfigured() {
   return Boolean(process.env.PAYPAL_CLIENT_ID?.trim() && process.env.PAYPAL_CLIENT_SECRET?.trim());
+}
+
+export function getPayPalClientId() {
+  return process.env.PAYPAL_CLIENT_ID?.trim() || '';
 }
 
 function clientBaseUrl() {
@@ -134,9 +143,10 @@ async function ensureBillingPlan({
       ? { interval_unit: 'YEAR', interval_count: 1 }
       : { interval_unit: 'MONTH', interval_count: 1 };
 
-  const plan = await paypalRequest<{ id: string }>('/v1/billing/plans', 'POST', {
+  const plan = await paypalRequest<{ id: string; status?: string }>('/v1/billing/plans', 'POST', {
     product_id: product?.id,
     name,
+    status: 'ACTIVE',
     billing_cycles: [
       {
         frequency: interval,
@@ -156,8 +166,16 @@ async function ensureBillingPlan({
     },
   });
 
-  planIdCache.set(cacheKey, plan?.id || '');
-  return plan?.id || '';
+  if (!plan?.id) {
+    throw Object.assign(new Error('Failed to create PayPal billing plan.'), { status: 502 });
+  }
+
+  if (plan.status && plan.status !== 'ACTIVE') {
+    await paypalRequest(`/v1/billing/plans/${plan.id}/activate`, 'POST', {});
+  }
+
+  planIdCache.set(cacheKey, plan.id);
+  return plan.id;
 }
 
 export async function createCheckoutSession({
@@ -183,8 +201,6 @@ export async function createCheckoutSession({
     return { devMode: true, url: null as string | null, metadata };
   }
 
-  const returnUrl = `${clientBaseUrl()}${successPath}`;
-  const cancelUrl = `${clientBaseUrl()}${cancelPath}`;
   const customId = packMetadata(metadata);
 
   const plan = getPlanByKey(planKey || '');
@@ -200,23 +216,13 @@ export async function createCheckoutSession({
     billingCycle,
   });
 
-  const subscription = await paypalRequest<{ id: string; links?: { rel: string; href: string }[] }>(
-    '/v1/billing/subscriptions',
-    'POST',
-    {
-      plan_id: paypalPlanId,
-      custom_id: customId,
-      application_context: {
-        brand_name: 'Career Track',
-        user_action: 'SUBSCRIBE_NOW',
-        return_url: returnUrl,
-        cancel_url: cancelUrl,
-      },
-    }
-  );
-
-  const approveUrl = subscription?.links?.find((link) => link.rel === 'approve')?.href;
-  return { subscriptionId: subscription?.id, url: approveUrl, devMode: false };
+  return {
+    checkoutMode: 'paypal_sdk' as const,
+    paypalClientId: getPayPalClientId(),
+    paypalPlanId,
+    customId,
+    devMode: false,
+  };
 }
 
 export async function retrievePayPalSubscription(subscriptionId: string) {
@@ -227,6 +233,40 @@ export async function retrievePayPalSubscription(subscriptionId: string) {
     custom_id?: string;
     billing_info?: { next_billing_time?: string };
   }>(`/v1/billing/subscriptions/${subscriptionId}`, 'GET');
+}
+
+export async function cancelPayPalSubscription(subscriptionId: string, reason = 'Cancelled by user') {
+  if (!subscriptionId || !isPayPalConfigured()) return false;
+
+  const token = await getAccessToken();
+  if (!token) return false;
+
+  const response = await fetch(
+    `${getPayPalApiBase()}/v1/billing/subscriptions/${subscriptionId}/cancel`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ reason }),
+    }
+  );
+
+  // 204 No Content = success. 422 = already cancelled/inactive (treat as done).
+  if (response.status === 204 || response.status === 422) return true;
+
+  if (!response.ok) {
+    const data = (await response.json().catch(() => ({}))) as {
+      message?: string;
+      error_description?: string;
+    };
+    throw Object.assign(new Error(data.message || data.error_description || 'PayPal cancellation failed.'), {
+      status: response.status >= 500 ? 502 : 400,
+    });
+  }
+
+  return true;
 }
 
 export async function confirmPayPalCheckout({
@@ -254,17 +294,29 @@ export async function handlePayPalCheckoutCompleted({
   if (!subscription) return null;
 
   const metadata = unpackMetadata(subscription.custom_id);
-  const { planKey, userId } = metadata;
+  const { planKey, userId, billingCycle } = metadata;
   if (!userId || !planKey) return null;
 
   const currentPeriodEnd = subscription.billing_info?.next_billing_time
     ? new Date(subscription.billing_info.next_billing_time)
     : undefined;
 
-  return planService.activatePlan(userId, planKey, {
+  const result = await planService.activatePlan(userId, planKey, {
     paypalSubscriptionId: subscription.id,
     currentPeriodEnd,
   });
+
+  await invoiceService.recordPayment({
+    userId,
+    planKey,
+    billingCycle,
+    paymentMethod: 'paypal',
+    paypalSubscriptionId: subscription.id,
+    paypalTransactionId: subscription.id,
+    description: `${result.planLabel} subscription started`,
+  });
+
+  return result;
 }
 
 export async function handlePayPalWebhook(event: { event_type?: string; resource?: Record<string, unknown> }) {
@@ -284,9 +336,60 @@ export async function handlePayPalWebhook(event: { event_type?: string; resource
   if (eventType === 'BILLING.SUBSCRIPTION.CANCELLED' && resource?.id) {
     const subscription = await retrievePayPalSubscription(String(resource.id));
     const metadata = unpackMetadata(subscription?.custom_id);
-    if (metadata.userId) {
-      return planService.activatePlan(metadata.userId, 'free');
+    if (!metadata.userId) return null;
+
+    const user = await User.findById(metadata.userId).select(
+      'subscriptionCurrentPeriodEnd subscriptionCancelAtPeriodEnd'
+    );
+    const periodEnd = user?.subscriptionCurrentPeriodEnd ? new Date(user.subscriptionCurrentPeriodEnd) : null;
+    const keepAccessUntilPeriodEnd =
+      user?.subscriptionCancelAtPeriodEnd && periodEnd && periodEnd > new Date();
+
+    if (keepAccessUntilPeriodEnd) return null;
+
+    return planService.activatePlan(metadata.userId, 'free');
+  }
+
+  if (eventType === 'PAYMENT.SALE.COMPLETED' && resource?.id) {
+    const sale = resource as {
+      id?: string;
+      amount?: { total?: string; currency?: string };
+      billing_agreement_id?: string;
+      create_time?: string;
+    };
+    const subscriptionId = sale.billing_agreement_id;
+    if (!subscriptionId) return null;
+
+    const subscription = await retrievePayPalSubscription(subscriptionId);
+    const metadata = unpackMetadata(subscription?.custom_id);
+    if (!metadata.userId || !metadata.planKey) return null;
+
+    const catalog = PLAN_CATALOG[normalizePlan(metadata.planKey)];
+
+    const recentActivation = await BillingInvoice.findOne({
+      paypalSubscriptionId: subscriptionId,
+      paypalTransactionId: subscriptionId,
+    }).lean();
+    if (recentActivation?.paidAt && sale.create_time) {
+      const saleTime = new Date(sale.create_time).getTime();
+      const activationTime = new Date(recentActivation.paidAt).getTime();
+      if (Math.abs(saleTime - activationTime) < 60 * 60 * 1000) {
+        return null;
+      }
     }
+
+    await invoiceService.recordPayment({
+      userId: metadata.userId,
+      planKey: metadata.planKey,
+      billingCycle: metadata.billingCycle || 'monthly',
+      paymentMethod: 'paypal',
+      paypalSubscriptionId: subscriptionId,
+      paypalTransactionId: sale.id,
+      amount: sale.amount?.total ? Number.parseFloat(sale.amount.total) : undefined,
+      description: `${catalog?.label ?? 'Career Pro'} renewal`,
+      paidAt: sale.create_time ? new Date(sale.create_time) : new Date(),
+    });
+    return { recorded: true };
   }
 
   return null;

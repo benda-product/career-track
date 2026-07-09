@@ -32,6 +32,8 @@ apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
 const AUTH_BYPASS_PATHS = [
   '/auth/login',
   '/auth/register',
+  '/auth/logout',
+  '/auth/refresh-token',
   '/auth/forgot-password',
   '/auth/reset-password',
   '/auth/verify-email',

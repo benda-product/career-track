@@ -25,12 +25,12 @@ export function Header() {
   const [search, setSearch] = useState('');
 
   const handleLogout = async () => {
-    try {
-      if (refreshToken) await authService.logout(refreshToken);
-    } finally {
-      clearAuth();
-      router.push('/auth/login');
-    }
+    const token =
+      refreshToken ||
+      (typeof window !== 'undefined' ? localStorage.getItem('refreshToken') : null);
+    if (token) await authService.logout(token);
+    clearAuth();
+    router.push('/auth/login');
   };
 
   const handleSearch = (e: React.FormEvent) => {

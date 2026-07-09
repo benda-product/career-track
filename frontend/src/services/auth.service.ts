@@ -19,7 +19,11 @@ export const authService = {
   },
 
   logout: async (refreshToken: string) => {
-    await apiClient.post('/auth/logout', { refreshToken });
+    try {
+      await apiClient.post('/auth/logout', { refreshToken });
+    } catch {
+      // Best-effort server logout; local session is cleared by the caller.
+    }
   },
 
   forgotPassword: async (email: string) => {

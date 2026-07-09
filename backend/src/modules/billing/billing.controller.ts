@@ -30,6 +30,26 @@ export class BillingController {
     sendSuccess(res, data);
   });
 
+  listInvoices = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const data = await planService.listInvoices(req.user!.userId);
+    sendSuccess(res, data);
+  });
+
+  downloadInvoice = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const invoiceId = String(req.params.invoiceId || '');
+    if (!invoiceId) throw new ApiError(400, 'invoiceId is required');
+
+    const { buffer, filename } = await planService.downloadInvoicePdf(req.user!.userId, invoiceId);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(buffer);
+  });
+
+  cancelSubscription = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const data = await planService.cancelSubscription(req.user!.userId);
+    sendSuccess(res, data, data.message);
+  });
+
   confirmCheckout = asyncHandler(async (req: Request, res: Response) => {
     const subscriptionId = String(req.query.subscriptionId || req.query.subscription_id || '');
 

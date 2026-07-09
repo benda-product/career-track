@@ -42,6 +42,10 @@ export class UserRepository {
       passwordResetExpires: { $gt: new Date() },
     });
   }
+
+  async findByRefreshToken(token: string): Promise<IUser | null> {
+    return User.findOne({ refreshTokens: token });
+  }
 }
 
 export const userRepository = new UserRepository();

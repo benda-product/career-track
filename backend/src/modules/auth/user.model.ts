@@ -23,6 +23,7 @@ export interface IUser extends Document {
   subscriptionPlan?: 'free' | 'pro';
   paypalSubscriptionId?: string;
   subscriptionCurrentPeriodEnd?: Date;
+  subscriptionCancelAtPeriodEnd?: boolean;
   coachingCreditsRemaining?: number;
   coachingCreditsPeriod?: string;
   comparePassword(candidatePassword: string): Promise<boolean>;
@@ -50,6 +51,7 @@ const userSchema = new Schema<IUser>(
     subscriptionPlan: { type: String, enum: ['free', 'pro'], default: 'free' },
     paypalSubscriptionId: String,
     subscriptionCurrentPeriodEnd: Date,
+    subscriptionCancelAtPeriodEnd: { type: Boolean, default: false },
     coachingCreditsRemaining: { type: Number, default: 0 },
     coachingCreditsPeriod: String,
   },

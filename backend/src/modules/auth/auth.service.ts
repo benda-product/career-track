@@ -228,8 +228,10 @@ export class AuthService {
     return tokens;
   }
 
-  async logout(userId: string, refreshToken: string) {
-    await userRepository.removeRefreshToken(userId, refreshToken);
+  async logout(refreshToken: string) {
+    const user = await userRepository.findByRefreshToken(refreshToken);
+    if (!user) return;
+    await userRepository.removeRefreshToken(user._id.toString(), refreshToken);
   }
 
   async verifyEmail(token: string) {

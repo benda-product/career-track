@@ -21,9 +21,7 @@ export class AuthController {
   });
 
   logout = asyncHandler(async (req: AuthRequest, res: Response) => {
-    if (req.user) {
-      await authService.logout(req.user.userId, req.body.refreshToken);
-    }
+    await authService.logout(req.body.refreshToken);
     sendSuccess(res, null, 'Logged out successfully');
   });
 

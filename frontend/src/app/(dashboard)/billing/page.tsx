@@ -12,9 +12,11 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { PLAN_CATALOG } from '@/config/plans';
 import { usePlanEntitlements } from '@/hooks/use-plan-entitlements';
-import { billingService } from '@/services/billing.service';
+import { billingService, type CheckoutResult } from '@/services/billing.service';
 import { cn } from '@/lib/utils';
 import { isAxiosError } from 'axios';
+import { PayPalCheckout } from '@/components/billing/paypal-checkout';
+import { BillingInvoices } from '@/components/billing/billing-invoices';
 
 export default function BillingPage() {
   const queryClient = useQueryClient();
@@ -24,14 +26,46 @@ export default function BillingPage() {
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'annual'>('monthly');
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [cancelling, setCancelling] = useState(false);
+  const [sdkCheckout, setSdkCheckout] = useState<CheckoutResult | null>(null);
+  const [confirmingPayment, setConfirmingPayment] = useState(false);
+
+  async function handleCancel() {
+    const confirmed = window.confirm(
+      'Cancel Career Pro? You will keep access until the end of your current billing period and will not be charged again. Resume AI Pro and SkillCheck Pro stay active until then.'
+    );
+    if (!confirmed) return;
+    setError('');
+    setMessage('');
+    setCancelling(true);
+    try {
+      const result = await billingService.cancelSubscription();
+      setMessage(result.message || 'Subscription cancelled.');
+      await queryClient.invalidateQueries({ queryKey: ['plan-entitlements'] });
+      await queryClient.invalidateQueries({ queryKey: ['billing-invoices'] });
+    } catch (err) {
+      setError(
+        isAxiosError(err)
+          ? (err.response?.data as { message?: string })?.message || 'Unable to cancel subscription.'
+          : 'Unable to cancel subscription.'
+      );
+    } finally {
+      setCancelling(false);
+    }
+  }
 
   async function handleUpgrade(planKey: string, cycle: 'monthly' | 'annual' = billingCycle) {
     if (planKey === 'free') return;
     setError('');
     setMessage('');
+    setSdkCheckout(null);
     setLoadingPlan(planKey);
     try {
       const result = await billingService.startCheckout(planKey, cycle);
+      if (result.checkoutMode === 'paypal_sdk' || result.checkoutMode === 'paypal_sdk_order') {
+        setSdkCheckout(result);
+        return;
+      }
       if (result.url) {
         window.location.href = result.url;
         return;
@@ -39,6 +73,7 @@ export default function BillingPage() {
       if (result.activated) {
         setMessage(result.message || `${result.planLabel ?? planKey} plan activated.`);
         await queryClient.invalidateQueries({ queryKey: ['plan-entitlements'] });
+      await queryClient.invalidateQueries({ queryKey: ['billing-invoices'] });
         return;
       }
       setMessage('Checkout started.');
@@ -50,6 +85,26 @@ export default function BillingPage() {
       );
     } finally {
       setLoadingPlan(null);
+    }
+  }
+
+  async function handlePayPalSuccess(id: string) {
+    setConfirmingPayment(true);
+    setError('');
+    try {
+      await billingService.confirmCheckout(id);
+      setSdkCheckout(null);
+      setMessage('Career Pro activated successfully.');
+      await queryClient.invalidateQueries({ queryKey: ['plan-entitlements'] });
+      await queryClient.invalidateQueries({ queryKey: ['billing-invoices'] });
+    } catch (err) {
+      setError(
+        isAxiosError(err)
+          ? (err.response?.data as { message?: string })?.message || 'Payment completed but activation failed.'
+          : 'Payment completed but activation failed.'
+      );
+    } finally {
+      setConfirmingPayment(false);
     }
   }
 
@@ -84,13 +139,9 @@ export default function BillingPage() {
         description="Career Pro includes Resume AI Pro and SkillCheck Pro — one plan for your full job search toolkit."
       />
 
-      {entitlements?.paypalEnabled ? (
-        <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
-          PayPal checkout is enabled — upgrades redirect to secure PayPal payment.
-        </p>
-      ) : entitlements?.devMode ? (
+      {entitlements?.devMode ? (
         <p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-          Demo billing mode — upgrades apply instantly without payment. Add PayPal credentials to enable live checkout.
+          Demo billing mode — upgrades and cancellations apply instantly without PayPal.
         </p>
       ) : null}
 
@@ -116,6 +167,33 @@ export default function BillingPage() {
       {message ? <p className="text-sm font-medium text-emerald-700">{message}</p> : null}
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
 
+      {sdkCheckout?.paypalClientId ? (
+        <Card className="border-primary/30">
+          <CardHeader>
+            <CardTitle className="text-base">Complete your upgrade</CardTitle>
+            <CardDescription>
+              Choose PayPal or pay with a debit/credit card. Sandbox test cards work in this environment.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <PayPalCheckout
+              busy={confirmingPayment}
+              clientId={sdkCheckout.paypalClientId}
+              mode={sdkCheckout.checkoutMode === 'paypal_sdk_order' ? 'order' : 'subscription'}
+              planId={sdkCheckout.paypalPlanId}
+              customId={sdkCheckout.customId}
+              orderAmount={sdkCheckout.orderAmount}
+              orderDescription={sdkCheckout.orderDescription}
+              onSuccess={handlePayPalSuccess}
+              onError={setError}
+            />
+            <Button variant="outline" size="sm" disabled={confirmingPayment} onClick={() => setSdkCheckout(null)}>
+              Cancel
+            </Button>
+          </CardContent>
+        </Card>
+      ) : null}
+
       <Card className="border-slate-900 bg-slate-900 text-white">
         <CardContent className="flex flex-col gap-4 p-6 sm:flex-row sm:items-center sm:justify-between">
           <div>
@@ -140,9 +218,32 @@ export default function BillingPage() {
             <Link href="/dashboard">
               <Button>Dashboard</Button>
             </Link>
+            {entitlements?.plan === 'pro' && !entitlements?.subscriptionCancelAtPeriodEnd ? (
+              <Button
+                variant="outline"
+                className="border-red-400/40 bg-transparent text-red-200 hover:bg-red-500/10 hover:text-red-100"
+                disabled={cancelling}
+                onClick={() => void handleCancel()}
+              >
+                {cancelling ? 'Cancelling…' : 'Cancel subscription'}
+              </Button>
+            ) : null}
           </div>
         </CardContent>
       </Card>
+
+      {entitlements?.plan === 'pro' && entitlements?.subscriptionCancelAtPeriodEnd && entitlements?.subscriptionCurrentPeriodEnd ? (
+        <p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          Cancellation scheduled — you keep Career Pro until{' '}
+          {new Date(entitlements.subscriptionCurrentPeriodEnd).toLocaleDateString()}. No further charges after that.
+        </p>
+      ) : entitlements?.plan === 'pro' && entitlements?.subscriptionCurrentPeriodEnd ? (
+        <p className="text-xs text-muted-foreground">
+          Your plan renews on{' '}
+          {new Date(entitlements.subscriptionCurrentPeriodEnd).toLocaleDateString()}. If you cancel, you keep Career Pro
+          until that date and will not be charged again.
+        </p>
+      ) : null}
 
       <div className="flex items-center gap-2">
         <Button
@@ -216,6 +317,8 @@ export default function BillingPage() {
           );
         })}
       </div>
+
+      <BillingInvoices />
     </div>
   );
 }
