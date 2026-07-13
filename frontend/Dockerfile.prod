@@ -1,0 +1,42 @@
+FROM node:20-bookworm-slim AS deps
+WORKDIR /app
+COPY package*.json .npmrc ./
+RUN npm install
+
+FROM node:20-bookworm-slim AS builder
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+
+ARG NEXT_PUBLIC_API_URL=https://careertrack.bendainfotech.com/api/v1
+ARG NEXT_PUBLIC_SOCKET_URL=https://careertrack.bendainfotech.com
+ARG NEXT_PUBLIC_SKILL_TEST_URL=https://skillcheck.bendainfotech.com
+ARG NEXT_PUBLIC_BENDA_URL=https://demo.bendainfotech.com
+ARG BACKEND_URL=http://career-track-backend:5003
+
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_SOCKET_URL=$NEXT_PUBLIC_SOCKET_URL
+ENV NEXT_PUBLIC_SKILL_TEST_URL=$NEXT_PUBLIC_SKILL_TEST_URL
+ENV NEXT_PUBLIC_BENDA_URL=$NEXT_PUBLIC_BENDA_URL
+ENV BACKEND_URL=$BACKEND_URL
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV NODE_ENV=production
+
+RUN npm run build
+
+FROM node:20-bookworm-slim AS runner
+WORKDIR /app
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV PORT=3003
+ENV HOSTNAME=0.0.0.0
+ENV BACKEND_URL=http://career-track-backend:5003
+
+COPY --from=builder /app/package*.json ./
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/.next ./.next
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/next.config.ts ./
+
+EXPOSE 3003
+CMD ["npx", "next", "start", "-H", "0.0.0.0", "-p", "3003"]

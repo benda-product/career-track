@@ -184,7 +184,10 @@ export default function CoursesPage() {
           <BookOpen className="h-4 w-4 text-primary" />
           Browse by category
         </div>
-        <Select value={activeCategory} onValueChange={setActiveCategory}>
+        <Select
+          value={activeCategory}
+          onValueChange={(value) => setActiveCategory(value ?? "all")}
+        >
           <SelectTrigger className="w-full sm:w-[280px]">
             <SelectValue placeholder="All categories" />
           </SelectTrigger>

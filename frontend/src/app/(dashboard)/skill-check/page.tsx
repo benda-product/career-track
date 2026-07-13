@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useMemo, useState, useEffect } from 'react';
+import { Suspense, useCallback, useMemo, useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { ClipboardCheck, History, PlayCircle, RefreshCw, Trophy, Target, AlertCircle, Award } from 'lucide-react';
@@ -16,7 +16,7 @@ import { SkillCheckUpgradeBanner } from '@/components/skill-check/SkillCheckUpgr
 import { TestResultCard } from '@/components/skill-check/TestResultCard';
 import { skillCheckService } from '@/services/skillCheck.service';
 
-export default function ViewResultPage() {
+function SkillCheckPageContent() {
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
   const [syncing, setSyncing] = useState(false);
@@ -201,5 +201,19 @@ export default function ViewResultPage() {
         </>
       )}
     </motion.div>
+  );
+}
+
+export default function ViewResultPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center p-6 text-sm text-muted-foreground">
+          Loading…
+        </div>
+      }
+    >
+      <SkillCheckPageContent />
+    </Suspense>
   );
 }

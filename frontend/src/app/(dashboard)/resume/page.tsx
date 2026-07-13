@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
@@ -20,7 +20,7 @@ import { getResumeId, resumeService, type ResumeItem } from '@/services/resume.s
 import { profileService } from '@/services/profile.service';
 import { useAuthStore } from '@/store/auth.store';
 
-export default function ResumePage() {
+function ResumePageContent() {
   const queryClient = useQueryClient();
   const searchParams = useSearchParams();
   const hasHydrated = useAuthStore((s) => s.hasHydrated);
@@ -501,5 +501,19 @@ export default function ResumePage() {
         onClose={closeView}
       />
     </motion.div>
+  );
+}
+
+export default function ResumePage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center p-6 text-sm text-muted-foreground">
+          Loading…
+        </div>
+      }
+    >
+      <ResumePageContent />
+    </Suspense>
   );
 }

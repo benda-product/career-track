@@ -1,5 +1,6 @@
 'use client';
 
+import { Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { Briefcase } from 'lucide-react';
@@ -10,7 +11,7 @@ import { cn } from '@/lib/utils';
 const TALENT_DESK_URL = process.env.NEXT_PUBLIC_TALENT_DESK_URL || 'http://localhost:3002';
 const BENDA_URL = process.env.NEXT_PUBLIC_BENDA_URL || 'http://localhost:3004';
 
-export default function RoleMismatchPage() {
+function RoleMismatchPageContent() {
   const searchParams = useSearchParams();
   const reason = searchParams.get('reason') || 'recruiter';
 
@@ -50,5 +51,19 @@ export default function RoleMismatchPage() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+export default function RoleMismatchPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center p-6 text-sm text-muted-foreground">
+          Loading…
+        </div>
+      }
+    >
+      <RoleMismatchPageContent />
+    </Suspense>
   );
 }

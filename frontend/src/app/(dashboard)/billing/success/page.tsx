@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { billingService } from '@/services/billing.service';
 
-export default function BillingSuccessPage() {
+function BillingSuccessPageContent() {
   const queryClient = useQueryClient();
   const searchParams = useSearchParams();
   const [status, setStatus] = useState<'confirming' | 'done'>('confirming');
@@ -55,5 +55,19 @@ export default function BillingSuccessPage() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+export default function BillingSuccessPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center p-6 text-sm text-muted-foreground">
+          Loading…
+        </div>
+      }
+    >
+      <BillingSuccessPageContent />
+    </Suspense>
   );
 }

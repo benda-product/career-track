@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
@@ -18,7 +18,7 @@ import { isAxiosError } from 'axios';
 import { PayPalCheckout } from '@/components/billing/paypal-checkout';
 import { BillingInvoices } from '@/components/billing/billing-invoices';
 
-export default function BillingPage() {
+function BillingPageContent() {
   const queryClient = useQueryClient();
   const searchParams = useSearchParams();
   const { data: entitlements, isLoading } = usePlanEntitlements();
@@ -320,5 +320,19 @@ export default function BillingPage() {
 
       <BillingInvoices />
     </div>
+  );
+}
+
+export default function BillingPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center p-6 text-sm text-muted-foreground">
+          Loading…
+        </div>
+      }
+    >
+      <BillingPageContent />
+    </Suspense>
   );
 }

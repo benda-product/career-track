@@ -1,9 +1,9 @@
 'use client';
 
-import { useEffect } from 'react';
+import { Suspense, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 
-export default function SsoLoginAliasPage() {
+function SsoLoginAliasPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -16,5 +16,19 @@ export default function SsoLoginAliasPage() {
     <div className="flex min-h-screen items-center justify-center">
       <p className="text-sm text-muted-foreground">Redirecting to sign in…</p>
     </div>
+  );
+}
+
+export default function SsoLoginAliasPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center p-6 text-sm text-muted-foreground">
+          Loading…
+        </div>
+      }
+    >
+      <SsoLoginAliasPageContent />
+    </Suspense>
   );
 }
