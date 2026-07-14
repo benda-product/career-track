@@ -59,8 +59,8 @@ function LoginPageContent() {
           <CareerTrackLogo size="xl" className="mx-auto mb-4 justify-center" />
           <CardTitle className="text-2xl">Welcome back</CardTitle>
           <CardDescription>
-            Sign in with Google or your Career Track email and password. If you registered on Benda
-            Infotech with the same Google account, you are signed in automatically.
+            Career Track is for job seekers. Sign in with Google or email. Recruiters should use
+            Talent Desk.
           </CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit(onSubmit)}>
@@ -121,6 +121,15 @@ function LoginPageContent() {
             <p className="text-center text-sm text-muted-foreground">
               Don&apos;t have an account?{' '}
               <Link href="/auth/register" className="text-primary hover:underline">Sign up</Link>
+            </p>
+            <p className="text-center text-sm text-muted-foreground">
+              Hiring?{' '}
+              <a
+                href={process.env.NEXT_PUBLIC_TALENT_DESK_URL || 'http://localhost:3002'}
+                className="text-primary hover:underline"
+              >
+                Use Talent Desk
+              </a>
             </p>
           </CardFooter>
         </form>
