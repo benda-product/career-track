@@ -31,6 +31,10 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { CareerTrackLogo } from '@/components/brand/career-track-logo';
+import {
+  ProductAppSwitcher,
+  switchFromCareerTrack,
+} from '@/components/layout/product-app-switcher';
 
 type NavItem = {
   href: string;
@@ -45,6 +49,9 @@ type NavGroup = {
   icon: ComponentType<{ className?: string }>;
   collapsible: boolean;
   items: NavItem[];
+  /** Optional product logo shown in the group header (e.g. Resume AI) */
+  logoSrc?: string;
+  logoAlt?: string;
 };
 
 const NAV_GROUPS: NavGroup[] = [
@@ -64,6 +71,8 @@ const NAV_GROUPS: NavGroup[] = [
     title: 'Resume Builder',
     icon: FileText,
     collapsible: true,
+    logoSrc: '/images/logos/resume-ai.png',
+    logoAlt: 'Resume AI',
     items: [
       {
         href: '/resume',
@@ -99,6 +108,8 @@ const NAV_GROUPS: NavGroup[] = [
     title: 'Skillcheck',
     icon: ClipboardCheck,
     collapsible: true,
+    logoSrc: '/images/logos/skillcheck.png',
+    logoAlt: 'SkillCheck',
     items: [
       { href: '/skill-check/take', label: 'Take Test', icon: PlayCircle },
       {
@@ -227,10 +238,15 @@ export function Sidebar({ className }: SidebarProps) {
         className
       )}
     >
-      <div className="flex h-16 items-center border-b border-slate-100 px-6 justify-between bg-slate-50/50">
-        <Link href="/" className="hover:opacity-90 transition-opacity">
+      <div className="relative z-50 flex h-16 shrink-0 items-center justify-between gap-2 border-b border-slate-100 bg-slate-50/50 px-4">
+        <Link href="/dashboard" className="min-w-0 transition-opacity hover:opacity-90">
           <CareerTrackLogo size="md" className="h-8 text-primary" />
         </Link>
+        <ProductAppSwitcher
+          current="career-track"
+          compact
+          onNavigate={switchFromCareerTrack}
+        />
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin">
@@ -250,7 +266,17 @@ export function Sidebar({ className }: SidebarProps) {
                     groupActive ? 'text-primary' : 'text-slate-500 hover:text-slate-800'
                   )}
                 >
-                  <GroupIcon className="h-3.5 w-3.5 shrink-0" />
+                  {group.logoSrc ? (
+                    <span className="flex h-6 w-6 shrink-0 items-center justify-center overflow-hidden rounded-md bg-white ring-1 ring-slate-200/80">
+                      <img
+                        src={group.logoSrc}
+                        alt={group.logoAlt || group.title}
+                        className="h-5 w-5 object-contain"
+                      />
+                    </span>
+                  ) : (
+                    <GroupIcon className="h-3.5 w-3.5 shrink-0" />
+                  )}
                   <span className="flex-1 text-left">{group.title}</span>
                   <ChevronDown
                     className={cn(
