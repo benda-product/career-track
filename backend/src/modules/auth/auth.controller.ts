@@ -50,7 +50,7 @@ export class AuthController {
     if (!token) {
       return res.status(400).json({ success: false, message: 'SSO token is required' });
     }
-    const result = await authService.ssoLoginFromCentralAuth(token, redirect || '/dashboard');
+    const result = await authService.ssoLogin(token, redirect || '/dashboard');
     sendSuccess(res, result, 'SSO login successful');
   });
 }

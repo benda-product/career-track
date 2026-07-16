@@ -23,6 +23,7 @@ import {
   verifyEcosystemCredentials,
   splitDisplayName,
 } from '../../services/ecosystemAuth.service';
+import { verifyCareerTrackSsoToken } from '../../utils/careerTrackSso';
 
 interface RegisterDto {
   email: string;
@@ -386,6 +387,17 @@ export class AuthService {
     };
   }
 
+  async ssoLogin(token: string, redirect = '/dashboard') {
+    try {
+      return await this.ssoLoginFromCentralAuth(token, redirect);
+    } catch (error) {
+      if (!(error instanceof ApiError) || error.statusCode !== 401) {
+        throw error;
+      }
+      return this.ssoLoginFromCareerTrackSso(token, redirect);
+    }
+  }
+
   async ssoLoginFromCentralAuth(token: string, redirect = '/dashboard') {
     const payload = await verifyCentralAuthToken(token, {
       requiredProduct: CENTRAL_AUTH_PRODUCTS.CAREER_TRACK,
@@ -410,8 +422,55 @@ export class AuthService {
     };
   }
 
+  async ssoLoginFromCareerTrackSso(token: string, redirect = '/dashboard') {
+    const payload = verifyCareerTrackSsoToken(token);
+    const email = payload.email.toLowerCase().trim();
+    let user = payload.userId ? await userRepository.findById(payload.userId) : null;
+
+    if (!user || user.email.toLowerCase() !== email) {
+      user = await userRepository.findByEmail(email);
+    }
+
+    if (!user) {
+      const parts = splitDisplayName(payload.name || email.split('@')[0]);
+      user = await userRepository.create({
+        email,
+        password: crypto.randomBytes(32).toString('hex'),
+        firstName: parts.firstName,
+        lastName: parts.lastName,
+        role: 'candidate',
+        isEmailVerified: true,
+        authProvider: 'benda_infotech',
+      });
+      await profileRepository.create(user._id.toString());
+      void syncCandidateToTalentPool(user._id.toString());
+    } else {
+      await userRepository.update(user._id.toString(), { lastLogin: new Date() });
+    }
+
+    const tokens = this.buildTokens(user);
+    await userRepository.addRefreshToken(user._id.toString(), tokens.refreshToken);
+
+    return {
+      success: true,
+      redirect: payload.targetPath || redirect,
+      returnUrl: payload.returnUrl,
+      sourceApp: payload.sourceApp,
+      user: {
+        id: user._id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        role: user.role,
+        isEmailVerified: user.isEmailVerified,
+      },
+      ...tokens,
+    };
+  }
+
   private async resolveUserFromCentralPayload(payload: CentralAuthPayload) {
     const email = payload.email.toLowerCase().trim();
+    const isHubAdmin = payload.roles?.includes('ADMIN');
     let user = await userRepository.findByEmail(email);
 
     const firstName =
@@ -425,18 +484,25 @@ export class AuthService {
         password: crypto.randomBytes(32).toString('hex'),
         firstName,
         lastName,
-        role: 'candidate',
+        role: isHubAdmin ? 'admin' : 'candidate',
         isEmailVerified: true,
         authProvider: 'benda_infotech',
       });
       await profileRepository.create(user._id.toString());
       void syncCandidateToTalentPool(user._id.toString());
     } else {
-      await userRepository.update(user._id.toString(), {
+      const updates: Record<string, unknown> = {
         lastLogin: new Date(),
         bendaLinked: true,
         isEmailVerified: user.isEmailVerified || true,
-      });
+      };
+      if (isHubAdmin && user.role !== 'admin') {
+        updates.role = 'admin';
+      }
+      await userRepository.update(user._id.toString(), updates);
+      if (isHubAdmin && user.role !== 'admin') {
+        user.role = 'admin';
+      }
     }
 
     void ensureLocalUserInCentralAuth(CENTRAL_AUTH_PRODUCTS.CAREER_TRACK, user, {

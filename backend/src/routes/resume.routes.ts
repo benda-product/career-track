@@ -1,16 +1,16 @@
 import { Router } from 'express';
 import { resumeController } from '../modules/resume/resume.controller';
-import { authenticate, authorize } from '../middlewares/auth.middleware';
+import { authenticate, authorize, authorizeCandidateWorkspace } from '../middlewares/auth.middleware';
 import { resumeUpload } from '../middlewares/upload.middleware';
 
 const router = Router();
 
-router.use(authenticate, authorize('candidate'));
-
+router.use(authenticate);
+router.get('/sso-url', authorizeCandidateWorkspace, resumeController.getSsoUrl);
+router.get('/upgrade-url', authorizeCandidateWorkspace, resumeController.getUpgradeUrl);
+router.use(authorize('candidate'));
 router.get('/', resumeController.getResumes);
-router.get('/sso-url', resumeController.getSsoUrl);
 router.get('/entitlements', resumeController.getEntitlements);
-router.get('/upgrade-url', resumeController.getUpgradeUrl);
 router.post('/create', resumeController.createResume);
 router.get('/templates', resumeController.getTemplates);
 router.get('/templates/:id', resumeController.getTemplate);

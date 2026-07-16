@@ -2,9 +2,12 @@ import { Router } from 'express';
 import { skillCheckController } from '../modules/skillCheck/skillCheck.controller';
 import { applicationInternalController } from '../modules/applications/application-internal.controller';
 import { bendaInfotechController } from '../modules/internal/bendaInfotech.controller';
+import { ecosystemInternalController } from '../modules/internal/ecosystem.controller';
 import { requireInternalKey } from '../middlewares/internalAuth.middleware';
 
 const router = Router();
+
+router.post('/sso-session', requireInternalKey, ecosystemInternalController.createSsoSession);
 
 router.post('/skill-check/assign', requireInternalKey, skillCheckController.assignFromAts);
 router.post(
@@ -31,6 +34,11 @@ router.post(
   '/benda-infotech/provision',
   requireInternalKey,
   bendaInfotechController.provisionJobSeeker
+);
+router.get(
+  '/benda-infotech/subscriptions',
+  requireInternalKey,
+  bendaInfotechController.listSubscriptions
 );
 
 export default router;

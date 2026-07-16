@@ -84,6 +84,29 @@ export class BendaInfotechController {
     sendSuccess(res, result);
   });
 
+  listSubscriptions = asyncHandler(async (_req: Request, res: Response) => {
+    const users = await User.find({ subscriptionPlan: { $ne: 'free' } })
+      .select(
+        'email firstName lastName subscriptionPlan subscriptionCurrentPeriodEnd subscriptionCancelAtPeriodEnd updatedAt'
+      )
+      .sort({ updatedAt: -1 })
+      .lean();
+
+    sendSuccess(res, {
+      items: users.map((user) => ({
+        sourceId: user._id.toString(),
+        subscriberType: 'user',
+        subscriberName: `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email,
+        subscriberEmail: user.email,
+        plan: user.subscriptionPlan,
+        status: user.subscriptionCancelAtPeriodEnd ? 'cancelling' : 'active',
+        billingCycle: 'monthly',
+        currentPeriodEnd: user.subscriptionCurrentPeriodEnd,
+        updatedAt: user.updatedAt,
+      })),
+    });
+  });
+
   provisionJobSeeker = asyncHandler(async (req: Request, res: Response) => {
     const { email, firstName, lastName, accountType } = req.body || {};
 

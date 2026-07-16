@@ -36,3 +36,6 @@ export const authorize = (...roles: UserRole[]) => {
     next();
   };
 };
+
+/** Candidate workspace + hub admins who use the candidate dashboard and app switcher. */
+export const authorizeCandidateWorkspace = authorize('candidate', 'admin');
