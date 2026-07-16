@@ -45,6 +45,11 @@ export class ApplicationRepository {
     return Application.findByIdAndUpdate(id, data, { new: true });
   }
 
+  async delete(id: string): Promise<boolean> {
+    const result = await Application.findByIdAndDelete(id);
+    return Boolean(result);
+  }
+
   async updateStage(
     id: string,
     stage: ApplicationStage,

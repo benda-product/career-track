@@ -99,53 +99,62 @@ export class JobsService {
     resumeId: string,
     application: IApplication
   ): Promise<IApplication> {
+    const [user, profile, atsJobMeta] = await Promise.all([
+      userRepository.findById(userId),
+      profileRepository.findByUserId(userId),
+      atsService.getJobMeta(jobId),
+    ]);
+
+    if (!user) {
+      throw new ApiError(404, 'User not found');
+    }
+
+    if (!atsJobMeta?.recruiterId) {
+      throw new ApiError(422, 'This job cannot accept applications in ATS (missing recruiter).');
+    }
+
+    const effectiveResumeId = resumeId || application.resumeId || profile?.resumeId;
+    let resumeUrl: string | undefined;
     try {
-      const [user, profile, atsJobMeta] = await Promise.all([
-        userRepository.findById(userId),
-        profileRepository.findByUserId(userId),
-        atsService.getJobMeta(jobId),
-      ]);
-
-      if (!user) return application;
-
-      const effectiveResumeId = resumeId || application.resumeId || profile?.resumeId;
       const resumePdfUrl = effectiveResumeId
         ? await buildResumePdfUrlForAts(user.email, effectiveResumeId)
         : undefined;
-      const resumeUrl = pickApplicationResumeUrl(resumePdfUrl);
-
-      const candidateData = profile ? buildApplicationCandidateData(user, profile) : undefined;
-      const appliedAt = application.appliedAt || new Date();
-
-        const atsResult = await atsService.syncApplication({
-          jobId,
-          candidateName: `${user.firstName} ${user.lastName}`.trim(),
-          candidateEmail: user.email,
-          resumeId: effectiveResumeId,
-          resumeUrl,
-          resumeTitle: application.resumeTitle,
-          appliedAt: appliedAt.toISOString(),
-          recruiterId: atsJobMeta?.recruiterId,
-          companyId: atsJobMeta?.companyId,
-          candidateData,
-        });
-
-      const updates: Partial<IApplication> = {};
-      if (atsResult?.applicationId && !application.atsApplicationId) {
-        updates.atsApplicationId = atsResult.applicationId;
-      }
-      if (effectiveResumeId) {
-        updates.resumeId = effectiveResumeId;
-      }
-      if (Object.keys(updates).length) {
-        const updated = await applicationRepository.update(application._id.toString(), updates);
-        if (updated) return updated;
-        Object.assign(application, updates);
-      }
+      resumeUrl = pickApplicationResumeUrl(resumePdfUrl);
     } catch (err) {
-      logger.error('ATS sync failed for application', { userId, jobId, err });
+      logger.warn('Resume PDF export for ATS failed; syncing without resume file', {
+        userId,
+        jobId,
+        err,
+      });
     }
 
+    const candidateData = profile ? buildApplicationCandidateData(user, profile) : undefined;
+    const appliedAt = application.appliedAt || new Date();
+
+    // Required: application must land on the posting recruiter's ATS pipeline
+    const atsResult = await atsService.syncApplication({
+      jobId,
+      candidateName: `${user.firstName} ${user.lastName}`.trim(),
+      candidateEmail: user.email,
+      resumeId: effectiveResumeId,
+      resumeUrl,
+      resumeTitle: application.resumeTitle,
+      appliedAt: appliedAt.toISOString(),
+      recruiterId: atsJobMeta.recruiterId,
+      companyId: atsJobMeta.companyId || undefined,
+      candidateData,
+    });
+
+    const updates: Partial<IApplication> = {
+      atsApplicationId: atsResult.applicationId,
+    };
+    if (effectiveResumeId) {
+      updates.resumeId = effectiveResumeId;
+    }
+
+    const updated = await applicationRepository.update(application._id.toString(), updates);
+    if (updated) return updated;
+    Object.assign(application, updates);
     return application;
   }
 
@@ -198,8 +207,21 @@ export class JobsService {
       appliedAt: new Date(),
     });
 
-    const synced = await this.syncApplicationWithAts(userId, jobId, selectedResumeId, application);
-    return { application: synced, created: true };
+    try {
+      const synced = await this.syncApplicationWithAts(userId, jobId, selectedResumeId, application);
+      return { application: synced, created: true };
+    } catch (err) {
+      // Do not leave a Career Track-only apply if ATS never received it
+      try {
+        await applicationRepository.delete(application._id.toString());
+      } catch (deleteErr) {
+        logger.error('Failed to roll back Career Track application after ATS sync failure', {
+          applicationId: application._id.toString(),
+          deleteErr,
+        });
+      }
+      throw err;
+    }
   }
 
   async saveJob(userId: string, jobData: {

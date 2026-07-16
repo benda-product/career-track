@@ -103,7 +103,7 @@ class AtsService {
     recruiterId?: string;
     companyId?: string;
     candidateData?: Record<string, unknown>;
-  }): Promise<{ applicationId?: string } | null> {
+  }): Promise<{ applicationId: string }> {
     try {
       const response = await this.client.post<{ applicationId?: string; application?: { _id?: string } }>(
         '/external/sync-application',
@@ -116,10 +116,12 @@ class AtsService {
         }
       );
       const body = response.data;
-      return {
-        applicationId:
-          body.applicationId ?? body.application?._id?.toString(),
-      };
+      const applicationId =
+        body.applicationId ?? body.application?._id?.toString();
+      if (!applicationId) {
+        throw new ApiError(502, 'ATS did not return an application id');
+      }
+      return { applicationId: String(applicationId) };
     } catch (error) {
       const message =
         axios.isAxiosError(error) ? error.response?.data?.message : undefined;
@@ -129,7 +131,11 @@ class AtsService {
         message,
         error,
       });
-      return null;
+      if (error instanceof ApiError) throw error;
+      throw new ApiError(
+        axios.isAxiosError(error) ? error.response?.status || 502 : 502,
+        message || 'Failed to send application to ATS'
+      );
     }
   }
 
