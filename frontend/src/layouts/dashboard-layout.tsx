@@ -40,20 +40,19 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
           <main className="flex-1 overflow-auto p-4 lg:p-6 bg-slate-50/30">
             {children}
           </main>
-          <footer className="border-t border-slate-200/60 bg-white/50 py-3.5 px-6 md:flex md:items-center md:justify-between text-[10px] font-semibold text-slate-400">
-            <div className="text-center md:text-left">
-              <span>&copy; {new Date().getFullYear()} CareerTrack Candidate Suite. A product of </span>
-              <a href={bendaHubUrl} target="_blank" rel="noreferrer" className="text-slate-500 hover:text-primary transition-colors">
+          <footer className="border-t border-slate-200/60 bg-white/50 px-6 py-3.5 text-center text-[11px] font-medium text-slate-400">
+            <span>
+              © {new Date().getFullYear()} CareerTrack • Powered by{' '}
+              <a
+                href={bendaHubUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="text-slate-500 transition-colors hover:text-primary"
+              >
                 Benda Infotech
               </a>
-            </div>
-            <div className="flex justify-center gap-3.5 mt-2 md:mt-0">
-              <a href="#" className="hover:text-slate-600 transition-colors">Candidate Helpdesk</a>
-              <span className="text-slate-200 select-none">•</span>
-              <a href="#" className="hover:text-slate-600 transition-colors">Privacy Policy</a>
-              <span className="text-slate-200 select-none">•</span>
-              <a href="#" className="hover:text-slate-600 transition-colors">Terms & Service</a>
-            </div>
+              .
+            </span>
           </footer>
         </div>
       </div>

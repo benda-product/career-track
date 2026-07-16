@@ -1,18 +1,24 @@
 import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
+import { Plus_Jakarta_Sans } from 'next/font/google';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { QueryProvider } from '@/components/providers/query-provider';
 import { PUBLIC_ASSETS } from '@/constants/assets';
 import './globals.css';
 
-const inter = Inter({
+const plusJakarta = Plus_Jakarta_Sans({
   subsets: ['latin'],
-  variable: '--font-sans',
+  variable: '--font-plus-jakarta',
+  display: 'swap',
+  weight: ['400', '500', '600', '700', '800'],
 });
 
 export const metadata: Metadata = {
-  title: 'CareerTrack - AI-Powered Candidate Platform',
-  description: 'Create resumes, search jobs, track applications, and accelerate your career.',
+  title: {
+    default: 'CareerTrack — Job seeker career workspace',
+    template: '%s · CareerTrack',
+  },
+  description:
+    'CareerTrack helps job seekers build ATS resumes, take SkillCheck assessments, match jobs, and track applications — with Resume AI and Hub SSO.',
   icons: {
     icon: [{ url: PUBLIC_ASSETS.favicon, type: 'image/png' }],
     shortcut: PUBLIC_ASSETS.favicon,
@@ -22,8 +28,8 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${inter.variable} h-full`}>
-      <body className="min-h-full font-sans antialiased">
+    <html lang="en" className={`${plusJakarta.variable} h-full`}>
+      <body className={`${plusJakarta.className} min-h-full antialiased`}>
         <QueryProvider>
           <TooltipProvider>{children}</TooltipProvider>
         </QueryProvider>
