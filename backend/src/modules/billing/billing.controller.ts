@@ -5,6 +5,7 @@ import { sendSuccess } from '../../utils/response';
 import { ApiError } from '../../utils/apiError';
 import { planService } from '../../services/plan.service';
 import { isBillingDevMode } from '../../constants/plans';
+import { invoiceService } from '../../services/invoice.service';
 import {
   confirmPayPalCheckout,
   handlePayPalWebhook,
@@ -31,6 +32,7 @@ export class BillingController {
   });
 
   listInvoices = asyncHandler(async (req: AuthRequest, res: Response) => {
+    await invoiceService.ensureReceiptForUser(req.user!.userId).catch(() => null);
     const data = await planService.listInvoices(req.user!.userId);
     sendSuccess(res, data);
   });

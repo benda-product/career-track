@@ -24,10 +24,10 @@ function formatDate(value: string | Date) {
   });
 }
 
-export function BillingInvoices() {
+export function BillingInvoices({ refreshKey = 0 }: { refreshKey?: number }) {
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const { data: invoices, isLoading } = useQuery({
-    queryKey: ['billing-invoices'],
+    queryKey: ['billing-invoices', refreshKey],
     queryFn: () => billingService.listInvoices(),
   });
 
@@ -59,7 +59,7 @@ export function BillingInvoices() {
           </div>
         ) : !invoices?.length ? (
           <p className="text-sm text-muted-foreground">
-            No invoices yet. Your payment receipts will appear here after you upgrade to Career Pro.
+            No invoices yet. Payment receipts appear here after a paid plan is activated.
           </p>
         ) : (
           <div className="overflow-x-auto">

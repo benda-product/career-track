@@ -2,8 +2,10 @@ FROM node:20-bookworm-slim
 
 WORKDIR /app
 
-COPY package*.json ./
-RUN npm install
+# npm 10 in node:20-bookworm-slim crashes on some lockfiles:
+# "Cannot read properties of undefined (reading 'extraneous')"
+COPY package.json ./
+RUN npm install --no-package-lock --no-audit --no-fund
 
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh

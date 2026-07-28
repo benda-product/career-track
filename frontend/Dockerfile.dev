@@ -2,11 +2,11 @@ FROM node:20-bookworm-slim
 
 WORKDIR /app
 
-COPY package*.json .npmrc ./
-RUN npm install
+COPY package.json .npmrc ./
+RUN npm install --no-package-lock --no-audit --no-fund
 
 EXPOSE 3003
 
 ENV WATCHPACK_POLLING=true
 
-CMD ["sh", "-c", "npm install && npm run dev -- -H 0.0.0.0 -p 3003"]
+CMD ["sh", "-c", "npm install --no-package-lock --no-audit --no-fund && npm run dev -- -H 0.0.0.0 -p 3003"]

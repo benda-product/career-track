@@ -29,6 +29,7 @@ function BillingPageContent() {
   const [cancelling, setCancelling] = useState(false);
   const [sdkCheckout, setSdkCheckout] = useState<CheckoutResult | null>(null);
   const [confirmingPayment, setConfirmingPayment] = useState(false);
+  const [invoiceRefreshKey, setInvoiceRefreshKey] = useState(0);
 
   async function handleCancel() {
     const confirmed = window.confirm(
@@ -73,7 +74,8 @@ function BillingPageContent() {
       if (result.activated) {
         setMessage(result.message || `${result.planLabel ?? planKey} plan activated.`);
         await queryClient.invalidateQueries({ queryKey: ['plan-entitlements'] });
-      await queryClient.invalidateQueries({ queryKey: ['billing-invoices'] });
+        await queryClient.invalidateQueries({ queryKey: ['billing-invoices'] });
+        setInvoiceRefreshKey((k) => k + 1);
         return;
       }
       setMessage('Checkout started.');
@@ -97,6 +99,7 @@ function BillingPageContent() {
       setMessage('Career Pro activated successfully.');
       await queryClient.invalidateQueries({ queryKey: ['plan-entitlements'] });
       await queryClient.invalidateQueries({ queryKey: ['billing-invoices'] });
+      setInvoiceRefreshKey((k) => k + 1);
     } catch (err) {
       setError(
         isAxiosError(err)
@@ -318,7 +321,7 @@ function BillingPageContent() {
         })}
       </div>
 
-      <BillingInvoices />
+      <BillingInvoices refreshKey={invoiceRefreshKey} />
     </div>
   );
 }

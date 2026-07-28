@@ -1,6 +1,7 @@
 import { ANNUAL_DISCOUNT, getPlanByKey, normalizePlan, PLAN_CATALOG } from '../constants/plans';
 import { BillingInvoice } from '../modules/billing/billing-invoice.model';
 import type { BillingPaymentMethod } from '../modules/billing/billing-invoice.model';
+import { User } from '../modules/auth/user.model';
 
 function computePlanAmount(planKey: string, billingCycle = 'monthly') {
   const plan = getPlanByKey(planKey);
@@ -97,6 +98,37 @@ export const invoiceService = {
       paidAt: invoice.paidAt,
       paypalSubscriptionId: invoice.paypalSubscriptionId ?? null,
     }));
+  },
+
+  async ensureReceiptForUser(userId: string, opts: { paymentMethod?: BillingPaymentMethod } = {}) {
+    const user = await User.findById(userId).select(
+      'subscriptionPlan subscriptionCurrentPeriodEnd paypalSubscriptionId updatedAt'
+    );
+    if (!user) return;
+    const plan = normalizePlan(user.subscriptionPlan);
+    if (plan !== 'pro') return;
+
+    const existing = await BillingInvoice.findOne({ userId }).lean();
+    if (existing) return;
+
+    const paymentMethod: BillingPaymentMethod = opts.paymentMethod || (user.paypalSubscriptionId ? 'paypal' : 'demo');
+    const paidAt =
+      user.subscriptionCurrentPeriodEnd
+        ? new Date(user.subscriptionCurrentPeriodEnd)
+        : (user as { updatedAt?: Date }).updatedAt || new Date();
+
+    await this.recordPayment({
+      userId: String(userId),
+      planKey: 'pro',
+      billingCycle: 'monthly',
+      paymentMethod,
+      paypalSubscriptionId: user.paypalSubscriptionId || undefined,
+      paypalTransactionId: user.paypalSubscriptionId
+        ? `${user.paypalSubscriptionId}-backfill`
+        : `backfill-${userId}-${Date.now()}`,
+      description: `${PLAN_CATALOG.pro.label} (backfilled)`,
+      paidAt,
+    });
   },
 
   async getForUserById(userId: string, invoiceId: string) {

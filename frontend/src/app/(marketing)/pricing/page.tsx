@@ -6,6 +6,7 @@ import { MarketingHeader } from '@/components/marketing/marketing-header';
 import { PricingCompareInfographic } from '@/components/marketing/infographics';
 import { PLAN_CATALOG } from '@/config/plans';
 import { cn } from '@/lib/utils';
+import { getBendaSignUpUrl } from '@/lib/benda-auth';
 
 export default function PricingPage() {
   return (
@@ -92,7 +93,11 @@ export default function PricingPage() {
                   ))}
                 </ul>
                 <Link
-                  href={plan.key === 'free' ? '/auth/register' : '/auth/register?plan=pro'}
+                  href={
+                    plan.key === 'free'
+                      ? getBendaSignUpUrl('career_track')
+                      : getBendaSignUpUrl('career_track', { plan: 'pro', billing: 'monthly' })
+                  }
                   className={cn(
                     'mt-8 inline-flex items-center justify-center rounded-xl px-4 py-3 text-sm font-semibold transition',
                     plan.featured
