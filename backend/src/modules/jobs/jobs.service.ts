@@ -88,7 +88,8 @@ export class JobsService {
         resumeId: String(resume.id || resume._id || resumeId),
         resumeTitle: resume.title?.trim() || 'Resume',
       };
-    } catch {
+    } catch (err) {
+      if (err instanceof ApiError) throw err;
       throw new ApiError(404, 'Selected resume was not found. Choose another resume or create a new one.');
     }
   }
@@ -110,7 +111,10 @@ export class JobsService {
     }
 
     if (!atsJobMeta?.recruiterId) {
-      throw new ApiError(422, 'This job cannot accept applications in ATS (missing recruiter).');
+      throw new ApiError(
+        422,
+        'This job cannot accept applications right now (ATS job metadata unavailable or missing recruiter). Confirm the job is published in Talent Desk.'
+      );
     }
 
     const effectiveResumeId = resumeId || application.resumeId || profile?.resumeId;

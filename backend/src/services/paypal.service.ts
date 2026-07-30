@@ -39,7 +39,15 @@ function computeAmountUsd(monthlyPrice: number, billingCycle = 'monthly') {
 }
 
 function packMetadata(metadata: Record<string, string>) {
-  const raw = JSON.stringify(metadata);
+  // PayPal custom_id max length is 127.
+  const compact: Record<string, string> = {};
+  if (metadata.planKey) compact.p = String(metadata.planKey);
+  if (metadata.billingCycle && metadata.billingCycle !== 'monthly') {
+    compact.b = metadata.billingCycle === 'annual' ? 'y' : String(metadata.billingCycle);
+  }
+  if (metadata.userId) compact.u = String(metadata.userId);
+
+  const raw = JSON.stringify(compact);
   if (raw.length > 127) {
     throw Object.assign(new Error('Checkout metadata is too large for PayPal.'), { status: 400 });
   }
@@ -49,7 +57,19 @@ function packMetadata(metadata: Record<string, string>) {
 export function unpackMetadata(customId?: string) {
   if (!customId) return {};
   try {
-    return JSON.parse(customId) as Record<string, string>;
+    const parsed = JSON.parse(customId) as Record<string, string>;
+    if (parsed.userId || parsed.planKey) {
+      return {
+        planKey: parsed.planKey || '',
+        billingCycle: parsed.billingCycle || 'monthly',
+        userId: parsed.userId || '',
+      };
+    }
+    return {
+      planKey: parsed.p || '',
+      billingCycle: parsed.b === 'y' ? 'annual' : parsed.b || 'monthly',
+      userId: parsed.u || '',
+    };
   } catch {
     return {};
   }
