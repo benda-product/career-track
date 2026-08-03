@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { CareerTrackLogo } from '@/components/brand/career-track-logo';
+import { getBendaForgotPasswordUrl } from '@/lib/benda-auth';
 
 const FOOTER_LINKS = [
   {
@@ -17,7 +18,7 @@ const FOOTER_LINKS = [
     links: [
       { href: '/auth/login', label: 'Sign in' },
       { href: '/auth/register', label: 'Create account' },
-      { href: '/auth/forgot-password', label: 'Forgot password' },
+      { href: getBendaForgotPasswordUrl(), label: 'Forgot password' },
     ],
   },
 ] as const;
@@ -53,9 +54,18 @@ export function MarketingFooter() {
               <ul className="mt-4 space-y-3">
                 {col.links.map((link) => (
                   <li key={link.href + link.label}>
-                    <Link href={link.href} className="text-sm text-white/70 transition hover:text-white">
-                      {link.label}
-                    </Link>
+                    {link.href.startsWith('http') ? (
+                      <a
+                        href={link.href}
+                        className="text-sm text-white/70 transition hover:text-white"
+                      >
+                        {link.label}
+                      </a>
+                    ) : (
+                      <Link href={link.href} className="text-sm text-white/70 transition hover:text-white">
+                        {link.label}
+                      </Link>
+                    )}
                   </li>
                 ))}
               </ul>

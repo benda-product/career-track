@@ -7,8 +7,30 @@ import { logger } from '../utils/logger';
 let io: Server;
 
 export const initSocket = (server: HttpServer): Server => {
+  const allowedOrigins = Array.from(
+    new Set(
+      [
+        env.clientUrl,
+        'http://localhost:3003',
+        'http://127.0.0.1:3003',
+      ].filter(Boolean)
+    )
+  );
+
   io = new Server(server, {
-    cors: { origin: env.clientUrl, credentials: true },
+    cors: {
+      origin: (origin, callback) => {
+        if (!origin || allowedOrigins.includes(origin)) {
+          callback(null, true);
+          return;
+        }
+        callback(null, false);
+      },
+      credentials: true,
+    },
+    transports: ['websocket', 'polling'],
+    pingInterval: 25000,
+    pingTimeout: 20000,
   });
 
   io.use((socket, next) => {
@@ -28,8 +50,8 @@ export const initSocket = (server: HttpServer): Server => {
     socket.join(`user:${userId}`);
     logger.debug('Socket connected', { userId });
 
-    socket.on('disconnect', () => {
-      logger.debug('Socket disconnected', { userId });
+    socket.on('disconnect', (reason) => {
+      logger.debug('Socket disconnected', { userId, reason });
     });
   });
 

@@ -35,6 +35,11 @@ router.post(
   requireInternalKey,
   bendaInfotechController.provisionJobSeeker
 );
+router.post(
+  '/benda-infotech/sync-password',
+  requireInternalKey,
+  bendaInfotechController.syncPassword
+);
 router.get(
   '/benda-infotech/subscriptions',
   requireInternalKey,

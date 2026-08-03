@@ -4,6 +4,10 @@ export function getBendaSignInUrl(product: 'career_track' | 'talent_desk' = 'car
   return `${BENDA_URL}/sign-in?product=${product}`;
 }
 
+export function getBendaForgotPasswordUrl() {
+  return `${BENDA_URL}/forgot-password`;
+}
+
 export function getBendaSignUpUrl(
   product: 'career_track' | 'talent_desk' = 'career_track',
   options?: { plan?: string; billing?: 'monthly' | 'annual' }
@@ -17,4 +21,9 @@ export function getBendaSignUpUrl(
 export function redirectToBendaSignIn(product: 'career_track' | 'talent_desk' = 'career_track') {
   if (typeof window === 'undefined') return;
   window.location.assign(getBendaSignInUrl(product));
+}
+
+export function redirectToBendaForgotPassword() {
+  if (typeof window === 'undefined') return;
+  window.location.assign(getBendaForgotPasswordUrl());
 }

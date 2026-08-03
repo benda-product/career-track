@@ -131,6 +131,40 @@ export class BendaInfotechController {
 
     sendSuccess(res, result);
   });
+
+  syncPassword = asyncHandler(async (req: Request, res: Response) => {
+    const { email, password } = req.body || {};
+    const normalizedEmail = String(email || '')
+      .toLowerCase()
+      .trim();
+    const nextPassword = String(password || '');
+
+    if (!normalizedEmail || !nextPassword) {
+      throw new ApiError(400, 'email and password are required');
+    }
+
+    if (nextPassword.length < 8) {
+      throw new ApiError(400, 'password must be at least 8 characters');
+    }
+
+    const user = await User.findOne({ email: normalizedEmail }).select('+password');
+    if (!user) {
+      sendSuccess(res, { updated: false, exists: false });
+      return;
+    }
+
+    user.password = nextPassword;
+    user.passwordResetToken = undefined;
+    user.passwordResetExpires = undefined;
+    await user.save();
+
+    sendSuccess(res, {
+      updated: true,
+      exists: true,
+      userId: user._id.toString(),
+      product: 'career_track',
+    });
+  });
 }
 
 export const bendaInfotechController = new BendaInfotechController();

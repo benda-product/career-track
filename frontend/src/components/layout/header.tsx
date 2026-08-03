@@ -18,11 +18,13 @@ import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Sidebar } from './sidebar';
 import { useAuthStore } from '@/store/auth.store';
 import { authService } from '@/services/auth.service';
+import { useSocketStatus } from '@/components/providers/socket-provider';
 
 export function Header() {
   const router = useRouter();
   const { user, refreshToken, clearAuth } = useAuthStore();
   const [search, setSearch] = useState('');
+  const socketStatus = useSocketStatus();
 
   const handleLogout = async () => {
     const token =
@@ -86,12 +88,41 @@ export function Header() {
       {/* Right Actions Block */}
       <div className="flex items-center gap-3">
         {/* Real-time Connection status indicator */}
-        <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-emerald-100 bg-emerald-50 text-emerald-700 text-[10px] font-bold">
+        <div
+          className={`hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[10px] font-bold ${
+            socketStatus === 'connected'
+              ? 'border-emerald-100 bg-emerald-50 text-emerald-700'
+              : socketStatus === 'connecting'
+                ? 'border-amber-100 bg-amber-50 text-amber-700'
+                : 'border-slate-200 bg-slate-50 text-slate-500'
+          }`}
+          title={
+            socketStatus === 'connected'
+              ? 'Realtime sync connected'
+              : socketStatus === 'connecting'
+                ? 'Connecting to realtime sync…'
+                : 'Realtime sync offline — reconnecting'
+          }
+        >
           <span className="relative flex h-1.5 w-1.5">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
+            {socketStatus === 'connected' ? (
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+            ) : null}
+            <span
+              className={`relative inline-flex rounded-full h-1.5 w-1.5 ${
+                socketStatus === 'connected'
+                  ? 'bg-emerald-500'
+                  : socketStatus === 'connecting'
+                    ? 'bg-amber-500'
+                    : 'bg-slate-400'
+              }`}
+            ></span>
           </span>
-          Live Sync Active
+          {socketStatus === 'connected'
+            ? 'Live Sync Active'
+            : socketStatus === 'connecting'
+              ? 'Connecting…'
+              : 'Sync Offline'}
         </div>
 
         {/* Notifications Bell */}

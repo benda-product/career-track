@@ -13,6 +13,7 @@ import { GoogleSignInButton } from '@/components/auth/google-sign-in-button';
 import { authService } from '@/services/auth.service';
 import { useAuthStore } from '@/store/auth.store';
 import { cn } from '@/lib/utils';
+import { getBendaForgotPasswordUrl } from '@/lib/benda-auth';
 
 const loginSchema = z.object({
   email: z.string().email('Enter a valid email'),
@@ -122,7 +123,7 @@ function LoginPageContent() {
                 Password
               </label>
               <Link
-                href="/auth/forgot-password"
+                href={getBendaForgotPasswordUrl()}
                 className="text-xs font-semibold text-[var(--ct-green)] hover:text-[var(--ct-green-deep)]"
               >
                 Forgot password?

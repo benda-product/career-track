@@ -28,7 +28,7 @@ const FAQS = [
   },
   {
     q: 'How do I reset my password?',
-    a: 'Use Forgot password on the sign-in page with the email on your account. Google users can continue signing in with Google without a separate CareerTrack password.',
+    a: 'Use Forgot password on Benda Infotech (hub) with the email on your account. Google users can continue signing in with Google without a separate CareerTrack password.',
   },
 ] as const;
 
