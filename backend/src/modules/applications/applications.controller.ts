@@ -49,6 +49,14 @@ export class ApplicationsController {
       throw new ApiError(404, 'Application not found');
     }
 
+    // Applications linked to Talent Desk (ATS) are recruiter-owned; candidates track only.
+    if (application.atsApplicationId) {
+      throw new ApiError(
+        403,
+        'Application status is managed by the recruiter and syncs automatically from Talent Desk'
+      );
+    }
+
     const updated = await applicationRepository.updateStage(
       getParam(req.params.id),
       req.body.stage,

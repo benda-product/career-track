@@ -54,12 +54,18 @@ export class ApplicationRepository {
     id: string,
     stage: ApplicationStage,
     note?: string,
-    updatedBy?: string
+    updatedBy?: string,
+    atsStage?: string
   ): Promise<IApplication | null> {
+    const $set: Record<string, unknown> = { stage };
+    if (atsStage !== undefined) {
+      $set.atsStage = atsStage;
+    }
+
     return Application.findByIdAndUpdate(
       id,
       {
-        stage,
+        $set,
         $push: { timeline: { stage, date: new Date(), note, updatedBy } },
       },
       { new: true }

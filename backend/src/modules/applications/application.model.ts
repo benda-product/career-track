@@ -22,9 +22,13 @@ export interface IApplication extends Document {
   recruiterFeedback?: string;
   notes?: string;
   atsApplicationId?: string;
+  /** Fine-grained Talent Desk pipeline stage (source of truth when linked). */
+  atsStage?: string;
   resumeId?: string;
   resumeTitle?: string;
   isSaved: boolean;
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
 const applicationSchema = new Schema<IApplication>(
@@ -56,6 +60,7 @@ const applicationSchema = new Schema<IApplication>(
     recruiterFeedback: String,
     notes: String,
     atsApplicationId: String,
+    atsStage: String,
     resumeId: String,
     resumeTitle: String,
     isSaved: { type: Boolean, default: false },

@@ -178,6 +178,9 @@ export interface Application {
   location?: string;
   salary?: string;
   stage: ApplicationStage;
+  /** Fine-grained Talent Desk stage when synced from ATS. */
+  atsStage?: string;
+  atsApplicationId?: string;
   appliedAt: string;
   resumeId?: string;
   resumeTitle?: string;

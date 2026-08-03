@@ -151,6 +151,7 @@ export class JobsService {
 
     const updates: Partial<IApplication> = {
       atsApplicationId: atsResult.applicationId,
+      atsStage: 'applied',
     };
     if (effectiveResumeId) {
       updates.resumeId = effectiveResumeId;

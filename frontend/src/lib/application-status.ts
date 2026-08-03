@@ -1,3 +1,45 @@
+import { APPLICATION_STAGES } from '@/constants';
+import type { Application, ApplicationStage } from '@/types';
+
+const ATS_STAGE_LABELS: Record<string, string> = {
+  applied: 'Applied',
+  screening: 'Screening',
+  assessment: 'Assessment',
+  shortlisted: 'Shortlisted',
+  interview_round_1: 'Interview Round 1',
+  interview_round_2: 'Interview Round 2',
+  final_interview: 'Final Interview',
+  interview_scheduled: 'Interview Scheduled',
+  interview_completed: 'Interview Completed',
+  offer_sent: 'Offer Sent',
+  offer_accepted: 'Offer Accepted',
+  offer_released: 'Offer Released',
+  selected: 'Selected',
+  hired: 'Hired',
+  rejected: 'Rejected',
+  on_hold: 'On Hold',
+};
+
+export function formatAtsStageLabel(atsStage?: string | null): string | null {
+  if (!atsStage) return null;
+  const key = String(atsStage).toLowerCase().trim();
+  return (
+    ATS_STAGE_LABELS[key] ||
+    key.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+  );
+}
+
+/** Prefer Talent Desk stage label when synced; otherwise Career Track stage. */
+export function getApplicationStatusLabel(
+  app: Pick<Application, 'stage' | 'atsStage'> | { stage: ApplicationStage; atsStage?: string }
+): string {
+  return (
+    formatAtsStageLabel(app.atsStage) ||
+    APPLICATION_STAGES.find((s) => s.value === app.stage)?.label ||
+    app.stage
+  );
+}
+
 export function getApplicationStageStyles(stage: string) {
   switch (stage) {
     case 'applied':

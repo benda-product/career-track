@@ -33,7 +33,8 @@ export async function syncApplicationStageFromAts(input: {
 
   const stageUnchanged = application.stage === mappedStage;
   const lastTimelineNote = application.timeline?.[application.timeline.length - 1]?.note || '';
-  if (stageUnchanged && lastTimelineNote === timelineNote) {
+  const atsStageUnchanged = (application.atsStage || '') === String(input.stage || '');
+  if (stageUnchanged && atsStageUnchanged && lastTimelineNote === timelineNote) {
     return { synced: false, reason: 'unchanged' as const, application };
   }
 
@@ -41,7 +42,8 @@ export async function syncApplicationStageFromAts(input: {
     application._id.toString(),
     mappedStage as ApplicationStage,
     timelineNote,
-    input.recruiterName || 'ATS Recruiter'
+    input.recruiterName || 'ATS Recruiter',
+    input.stage
   );
 
   if (!updated) {

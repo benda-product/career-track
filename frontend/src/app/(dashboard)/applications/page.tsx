@@ -36,6 +36,7 @@ import { applicationsService } from '@/services/applications.service';
 import { APPLICATION_STAGES } from '@/constants';
 import { Application, ApplicationStage } from '@/types';
 import { cn } from '@/lib/utils';
+import { getApplicationStatusLabel } from '@/lib/application-status';
 import { motion, AnimatePresence } from 'framer-motion';
 
 function getStageStyles(stage: string) {
@@ -319,7 +320,7 @@ export default function ApplicationsPage() {
                       {/* Right Stage & Expansion Trigger */}
                       <div className="flex shrink-0 gap-2 items-center justify-between sm:justify-end w-full sm:w-auto border-t sm:border-0 pt-2 sm:pt-0">
                         <Badge variant="outline" className={cn('text-[10px] font-bold uppercase tracking-wider py-0.5 px-2.5', style.badge)}>
-                          {APPLICATION_STAGES.find((s) => s.value === app.stage)?.label}
+                          {getApplicationStatusLabel(app)}
                         </Badge>
                         {app.timeline && app.timeline.length > 0 && (
                           <Button
@@ -419,7 +420,7 @@ export default function ApplicationsPage() {
 
                             <div className="flex shrink-0 gap-2 items-center justify-between sm:justify-end w-full sm:w-auto border-t sm:border-0 pt-2 sm:pt-0">
                               <Badge variant="outline" className={cn('text-[10px] font-bold uppercase tracking-wider py-0.5 px-2.5', style.badge)}>
-                                {stage.label}
+                                {getApplicationStatusLabel(app)}
                               </Badge>
                               {app.timeline && app.timeline.length > 0 && (
                                 <Button
@@ -495,7 +496,7 @@ export default function ApplicationsPage() {
               <DialogHeader>
                 <div className="flex flex-wrap items-center gap-2 border-b pb-2">
                   <Badge variant="outline" className={cn('text-[10px] font-bold uppercase tracking-wider py-0.5 px-2.5', style.badge)}>
-                    {APPLICATION_STAGES.find((s) => s.value === selectedApp.stage)?.label}
+                    {getApplicationStatusLabel(selectedApp)}
                   </Badge>
                   <DialogTitle className="text-base font-bold text-foreground truncate select-text">
                     Application Particulars

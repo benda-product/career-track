@@ -14,7 +14,7 @@ import { StatCard } from '@/components/ui/stat-card';
 import { applicationsService } from '@/services/applications.service';
 import { APPLICATION_STAGES } from '@/constants';
 import type { Application, ApplicationStage } from '@/types';
-import { getApplicationStageStyles } from '@/lib/application-status';
+import { getApplicationStageStyles, getApplicationStatusLabel } from '@/lib/application-status';
 import { cn } from '@/lib/utils';
 
 export default function ApplicationStatusPage() {
@@ -173,8 +173,7 @@ export default function ApplicationStatusPage() {
             <div className="space-y-3">
               {applications.map((app) => {
                 const style = getApplicationStageStyles(app.stage);
-                const stageLabel =
-                  APPLICATION_STAGES.find((s) => s.value === app.stage)?.label || app.stage;
+                const stageLabel = getApplicationStatusLabel(app);
 
                 return (
                   <Card
