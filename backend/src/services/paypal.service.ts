@@ -1,5 +1,5 @@
 import {
-  ANNUAL_DISCOUNT,
+  computePlanAmountUsd,
   getPlanByKey,
   isBillingDevMode,
   normalizePlan,
@@ -31,11 +31,8 @@ function clientBaseUrl() {
   return process.env.CLIENT_URL || 'http://localhost:3003';
 }
 
-function computeAmountUsd(monthlyPrice: number, billingCycle = 'monthly') {
-  if (billingCycle === 'annual') {
-    return monthlyPrice * 12 * (1 - ANNUAL_DISCOUNT);
-  }
-  return monthlyPrice;
+function computeAmountUsd(plan: { priceMonthly?: number; priceYearly?: number; savePercent?: number } | null, billingCycle = 'monthly') {
+  return computePlanAmountUsd(plan, billingCycle);
 }
 
 function packMetadata(metadata: Record<string, string>) {
@@ -228,7 +225,7 @@ export async function createCheckoutSession({
     throw Object.assign(new Error('Invalid plan selected.'), { status: 400 });
   }
 
-  const amountUsd = computeAmountUsd(plan.priceMonthly, billingCycle);
+  const amountUsd = computeAmountUsd(plan, billingCycle);
   const paypalPlanId = await ensureBillingPlan({
     cacheKey: `career-track-${planKey}-${billingCycle}-${amountUsd.toFixed(2)}`,
     name: `Career Track ${plan.label}`,

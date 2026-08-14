@@ -1,7 +1,17 @@
 export const SUBSCRIPTION_PLANS = ['free', 'pro'] as const;
 export type SubscriptionPlan = (typeof SUBSCRIPTION_PLANS)[number];
 
-export const ANNUAL_DISCOUNT = 0.2;
+export const ANNUAL_DISCOUNT = 0.5;
+
+export function computePlanAmountUsd(plan: { priceMonthly?: number; priceYearly?: number; savePercent?: number } | null | undefined, billingCycle = 'monthly') {
+  if (!plan?.priceMonthly) return 0;
+  if (billingCycle === 'annual' || billingCycle === 'yearly') {
+    if (plan.priceYearly != null) return Number(plan.priceYearly);
+    const discount = plan.savePercent != null ? plan.savePercent / 100 : ANNUAL_DISCOUNT;
+    return Number((plan.priceMonthly * 12 * (1 - discount)).toFixed(2));
+  }
+  return plan.priceMonthly;
+}
 
 export const FREE_RECOMMENDED_JOBS_LIMIT = 20;
 export const PRO_RECOMMENDED_JOBS_LIMIT = 100;
@@ -38,13 +48,14 @@ export const PLAN_CATALOG = {
       'Profile and resume integration',
       'Resume AI & SkillCheck free tiers via ecosystem',
       'Up to 20 recommended job matches',
-      'Email support',
     ],
   },
   pro: {
     key: 'pro' as const,
-    label: 'Career Pro',
-    priceMonthly: 19.99,
+    label: 'Career Track Pro',
+    priceMonthly: 14.99,
+    priceYearly: 89.99,
+    savePercent: 50,
     tag: 'Active job seekers',
     subtitle: 'Priority insights and advanced career analytics.',
     featured: true,
@@ -56,7 +67,6 @@ export const PLAN_CATALOG = {
       'Advanced analytics dashboard',
       '1 mock interview credit per month',
       'Up to 100 recommended job matches',
-      'Priority email support',
     ],
   },
 };

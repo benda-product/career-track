@@ -261,14 +261,14 @@ function BillingPageContent() {
           size="sm"
           onClick={() => setBillingCycle('annual')}
         >
-          Annual (20% off)
+          Annual (save 50%)
         </Button>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
         {PLAN_CATALOG.map((plan) => {
           const isCurrent = entitlements?.plan === plan.key;
-          const annualPrice = (plan.priceMonthly * 12 * 0.8).toFixed(2);
+          const annualPrice = (plan.priceYearly ?? plan.priceMonthly * 12 * 0.5).toFixed(2);
           const displayPrice =
             plan.priceMonthly === 0
               ? '$0'

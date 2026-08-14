@@ -1,15 +1,10 @@
-import { ANNUAL_DISCOUNT, getPlanByKey, normalizePlan, PLAN_CATALOG } from '../constants/plans';
+import { computePlanAmountUsd, getPlanByKey, normalizePlan, PLAN_CATALOG } from '../constants/plans';
 import { BillingInvoice } from '../modules/billing/billing-invoice.model';
 import type { BillingPaymentMethod } from '../modules/billing/billing-invoice.model';
 import { User } from '../modules/auth/user.model';
 
 function computePlanAmount(planKey: string, billingCycle = 'monthly') {
-  const plan = getPlanByKey(planKey);
-  if (!plan || plan.priceMonthly === 0) return 0;
-  if (billingCycle === 'annual') {
-    return Number((plan.priceMonthly * 12 * (1 - ANNUAL_DISCOUNT)).toFixed(2));
-  }
-  return plan.priceMonthly;
+  return computePlanAmountUsd(getPlanByKey(planKey), billingCycle);
 }
 
 async function generateInvoiceNumber() {

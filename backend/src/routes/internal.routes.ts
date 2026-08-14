@@ -45,5 +45,15 @@ router.get(
   requireInternalKey,
   bendaInfotechController.listSubscriptions
 );
+router.get(
+  '/benda-infotech/invoices',
+  requireInternalKey,
+  bendaInfotechController.listInvoices
+);
+router.get(
+  '/benda-infotech/invoices/:invoiceId/pdf',
+  requireInternalKey,
+  bendaInfotechController.downloadInvoicePdf
+);
 
 export default router;

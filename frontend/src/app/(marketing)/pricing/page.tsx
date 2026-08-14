@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import { Check, CircleHelp } from 'lucide-react';
 import { MarketingHeader } from '@/components/marketing/marketing-header';
@@ -8,7 +9,14 @@ import { PLAN_CATALOG } from '@/config/plans';
 import { cn } from '@/lib/utils';
 import { getBendaSignUpUrl } from '@/lib/benda-auth';
 
+function formatUsd(amount: number) {
+  if (Number.isInteger(amount)) return `$${amount}`;
+  return `$${amount.toFixed(2)}`;
+}
+
 export default function PricingPage() {
+  const [billing, setBilling] = useState<'monthly' | 'annual'>('monthly');
+
   return (
     <>
       <MarketingHeader active="pricing" />
@@ -20,7 +28,7 @@ export default function PricingPage() {
               Start free. Scale when you’re ready.
             </h1>
             <p className="mt-4 max-w-2xl text-lg text-[var(--ct-muted)]">
-              Free covers core search and tracking. Career Pro unlocks Resume AI Pro, SkillCheck Pro, priority insights,
+              Free covers core search and tracking. Career Track Pro unlocks Resume AI Pro, SkillCheck Pro, priority insights,
               and a monthly mock interview credit — without buying each tool separately.
             </p>
           </div>
@@ -56,11 +64,39 @@ export default function PricingPage() {
         <section className="mx-auto max-w-6xl px-5 py-16 sm:px-6 sm:py-20">
           <h2 className="text-2xl font-semibold tracking-tight text-[var(--ct-ink)]">Choose a plan</h2>
           <p className="mt-2 max-w-xl text-sm text-[var(--ct-muted)]">
-            Transparent monthly pricing. Upgrade or stay free — CareerTrack remains your job-seeker home either way.
+            Same catalog as in-app billing. Annual Career Track Pro is $89.99/year (50% off).
           </p>
+          <div className="mt-6 flex gap-2" role="group" aria-label="Billing cycle">
+            <button
+              type="button"
+              onClick={() => setBilling('monthly')}
+              className={cn(
+                'rounded-xl px-4 py-2 text-sm font-semibold transition',
+                billing === 'monthly'
+                  ? 'bg-[var(--ct-green)] text-white'
+                  : 'border border-[var(--ct-line)] bg-white text-[var(--ct-ink)]',
+              )}
+            >
+              Monthly
+            </button>
+            <button
+              type="button"
+              onClick={() => setBilling('annual')}
+              className={cn(
+                'rounded-xl px-4 py-2 text-sm font-semibold transition',
+                billing === 'annual'
+                  ? 'bg-[var(--ct-green)] text-white'
+                  : 'border border-[var(--ct-line)] bg-white text-[var(--ct-ink)]',
+              )}
+            >
+              Annual (save 50%)
+            </button>
+          </div>
 
           <div className="mt-10 grid gap-6 md:grid-cols-2">
-            {PLAN_CATALOG.map((plan) => (
+            {PLAN_CATALOG.map((plan) => {
+              const showAnnual = billing === 'annual' && 'annualPerMonth' in plan && plan.annualPerMonth != null;
+              return (
               <article
                 key={plan.key}
                 className={cn(
@@ -77,13 +113,18 @@ export default function PricingPage() {
                 <h3 className="mt-2 text-2xl font-semibold text-[var(--ct-ink)]">{plan.label}</h3>
                 <p className="mt-1 text-sm text-[var(--ct-muted)]">{plan.subtitle}</p>
                 <p className="mt-6 text-4xl font-semibold tracking-tight text-[var(--ct-ink)]">
-                  {plan.priceMonthly === 0 ? '$0' : `$${plan.priceMonthly}`}
+                  {plan.priceMonthly === 0 ? '$0' : formatUsd(Number(showAnnual ? plan.annualPerMonth : plan.priceMonthly))}
                   {plan.priceMonthly > 0 ? (
                     <span className="text-base font-medium text-[var(--ct-muted)]"> / month</span>
                   ) : (
                     <span className="text-base font-medium text-[var(--ct-muted)]"> forever free</span>
                   )}
                 </p>
+                {showAnnual && 'priceYearly' in plan ? (
+                  <p className="mt-1 text-sm text-[var(--ct-muted)]">
+                    {formatUsd(plan.priceYearly)}/year · Save {plan.savePercent}%
+                  </p>
+                ) : null}
                 <ul className="mt-8 flex-1 space-y-3">
                   {plan.features.map((feature) => (
                     <li key={feature} className="flex gap-2.5 text-sm text-[var(--ct-ink)]">
@@ -96,7 +137,10 @@ export default function PricingPage() {
                   href={
                     plan.key === 'free'
                       ? getBendaSignUpUrl('career_track')
-                      : getBendaSignUpUrl('career_track', { plan: 'pro', billing: 'monthly' })
+                      : getBendaSignUpUrl('career_track', {
+                          plan: 'pro',
+                          billing: billing === 'annual' ? 'annual' : 'monthly',
+                        })
                   }
                   className={cn(
                     'mt-8 inline-flex items-center justify-center rounded-xl px-4 py-3 text-sm font-semibold transition',
@@ -105,10 +149,11 @@ export default function PricingPage() {
                       : 'border border-[var(--ct-line)] bg-white text-[var(--ct-ink)] hover:bg-[var(--ct-tint)]',
                   )}
                 >
-                  {plan.key === 'free' ? 'Create free account' : 'Start Career Pro'}
+                  {plan.key === 'free' ? 'Create free account' : 'Start Career Track Pro'}
                 </Link>
               </article>
-            ))}
+            );
+            })}
           </div>
 
           <div className="mt-12 flex gap-3 border-t border-[var(--ct-line)] pt-8 text-sm text-[var(--ct-muted)]">

@@ -82,7 +82,7 @@ export function ResumeUpgradeBanner() {
         <div className="flex flex-wrap items-center gap-2">
           <Sparkles className="h-4 w-4 text-primary" />
           <CardTitle className="text-base">Upgrade Resume AI Pro</CardTitle>
-          <Badge variant="outline">$12.99/mo</Badge>
+          <Badge variant="outline">$4.99/mo</Badge>
         </div>
         <CardDescription>
           You&apos;re on the free plan ({entitlements?.maxResumes ?? 1} resume). Upgrade for

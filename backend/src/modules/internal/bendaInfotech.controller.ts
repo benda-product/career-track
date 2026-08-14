@@ -5,6 +5,8 @@ import { authService } from '../auth/auth.service';
 import { ApiError } from '../../utils/apiError';
 import { User } from '../auth/user.model';
 import { userRepository } from '../../repositories/user.repository';
+import { invoiceService } from '../../services/invoice.service';
+import { planService } from '../../services/plan.service';
 
 export class BendaInfotechController {
   accountLookup = asyncHandler(async (req: Request, res: Response) => {
@@ -105,6 +107,54 @@ export class BendaInfotechController {
         updatedAt: user.updatedAt,
       })),
     });
+  });
+
+  listInvoices = asyncHandler(async (req: Request, res: Response) => {
+    const email = String(req.query.email || '')
+      .toLowerCase()
+      .trim();
+    if (!email) {
+      throw new ApiError(400, 'email is required');
+    }
+
+    const user = await User.findOne({ email }).select('_id').lean();
+    if (!user) {
+      sendSuccess(res, { items: [] });
+      return;
+    }
+
+    await invoiceService.ensureReceiptForUser(user._id.toString()).catch(() => null);
+    const items = await invoiceService.listForUser(user._id.toString(), 50);
+    sendSuccess(res, {
+      items: items.map((invoice) => ({
+        ...invoice,
+        product: 'CAREER_TRACK',
+        sourceId: invoice.id,
+      })),
+    });
+  });
+
+  downloadInvoicePdf = asyncHandler(async (req: Request, res: Response) => {
+    const email = String(req.query.email || '')
+      .toLowerCase()
+      .trim();
+    const invoiceId = String(req.params.invoiceId || '').trim();
+    if (!email) {
+      throw new ApiError(400, 'email is required');
+    }
+    if (!invoiceId) {
+      throw new ApiError(400, 'invoiceId is required');
+    }
+
+    const user = await User.findOne({ email }).select('_id').lean();
+    if (!user) {
+      throw new ApiError(404, 'User not found');
+    }
+
+    const { buffer, filename } = await planService.downloadInvoicePdf(user._id.toString(), invoiceId);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(buffer);
   });
 
   provisionJobSeeker = asyncHandler(async (req: Request, res: Response) => {
