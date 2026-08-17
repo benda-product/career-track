@@ -14,6 +14,7 @@ import { authService } from '@/services/auth.service';
 import { useAuthStore } from '@/store/auth.store';
 import { cn } from '@/lib/utils';
 import { getBendaForgotPasswordUrl } from '@/lib/benda-auth';
+import { TurnstileField, isTurnstileEnabled } from '@/components/TurnstileField';
 
 const loginSchema = z.object({
   email: z.string().email('Enter a valid email'),
@@ -31,6 +32,8 @@ function LoginPageContent() {
   const setAuth = useAuthStore((s) => s.setAuth);
   const [error, setError] = useState(searchParams.get('error') || '');
   const [loading, setLoading] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState('');
+  const [turnstileKey, setTurnstileKey] = useState(0);
 
   const {
     register,
@@ -41,10 +44,14 @@ function LoginPageContent() {
   });
 
   const onSubmit = async (data: LoginForm) => {
+    if (isTurnstileEnabled() && !turnstileToken) {
+      setError('Please complete the security check.');
+      return;
+    }
     setLoading(true);
     setError('');
     try {
-      const result = await authService.login(data);
+      const result = await authService.login({ ...data, turnstileToken });
       setAuth(result.user, result.accessToken, result.refreshToken);
       router.push('/dashboard');
     } catch (err) {
@@ -54,6 +61,8 @@ function LoginPageContent() {
       setError(apiMessage || 'Invalid email or password');
     } finally {
       setLoading(false);
+      setTurnstileToken('');
+      setTurnstileKey((key) => key + 1);
     }
   };
 
@@ -138,6 +147,8 @@ function LoginPageContent() {
             />
             {errors.password ? <p className="text-xs text-red-600">{errors.password.message}</p> : null}
           </div>
+
+          <TurnstileField key={turnstileKey} onToken={setTurnstileToken} />
 
           <button
             type="submit"

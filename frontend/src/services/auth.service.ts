@@ -2,7 +2,13 @@ import apiClient from '@/lib/api-client';
 import { ApiResponse, User } from '@/types';
 
 export const authService = {
-  register: async (data: { email: string; password: string; firstName: string; lastName: string }) => {
+  register: async (data: {
+    email: string;
+    password: string;
+    firstName: string;
+    lastName: string;
+    turnstileToken?: string;
+  }) => {
     const res = await apiClient.post<ApiResponse<{ user: User; accessToken: string; refreshToken: string }>>(
       '/auth/register',
       data
@@ -10,7 +16,7 @@ export const authService = {
     return res.data.data!;
   },
 
-  login: async (data: { email: string; password: string }) => {
+  login: async (data: { email: string; password: string; turnstileToken?: string }) => {
     const res = await apiClient.post<ApiResponse<{ user: User; accessToken: string; refreshToken: string }>>(
       '/auth/login',
       data

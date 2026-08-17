@@ -12,6 +12,7 @@ import { GoogleSignInButton } from '@/components/auth/google-sign-in-button';
 import { authService } from '@/services/auth.service';
 import { useAuthStore } from '@/store/auth.store';
 import { cn } from '@/lib/utils';
+import { TurnstileField, isTurnstileEnabled } from '@/components/TurnstileField';
 
 const registerSchema = z.object({
   firstName: z.string().min(1, 'First name is required'),
@@ -35,6 +36,8 @@ export default function RegisterPage() {
   const setAuth = useAuthStore((s) => s.setAuth);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState('');
+  const [turnstileKey, setTurnstileKey] = useState(0);
 
   const {
     register,
@@ -45,16 +48,22 @@ export default function RegisterPage() {
   });
 
   const onSubmit = async (data: RegisterForm) => {
+    if (isTurnstileEnabled() && !turnstileToken) {
+      setError('Please complete the security check.');
+      return;
+    }
     setLoading(true);
     setError('');
     try {
-      const result = await authService.register(data);
+      const result = await authService.register({ ...data, turnstileToken });
       setAuth(result.user, result.accessToken, result.refreshToken);
       router.push('/dashboard');
     } catch {
       setError('Registration failed. Email may already be in use.');
     } finally {
       setLoading(false);
+      setTurnstileToken('');
+      setTurnstileKey((key) => key + 1);
     }
   };
 
@@ -159,6 +168,8 @@ export default function RegisterPage() {
             />
             {errors.password ? <p className="text-xs text-red-600">{errors.password.message}</p> : null}
           </div>
+
+          <TurnstileField key={turnstileKey} onToken={setTurnstileToken} />
 
           <button
             type="submit"

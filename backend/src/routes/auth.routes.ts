@@ -10,16 +10,17 @@ import {
   resetPasswordSchema,
   googleLoginSchema,
 } from '../validators/auth.validator';
+import { requireTurnstile } from '../middlewares/turnstile.middleware';
 
 const router = Router();
 
-router.post('/register', validate(registerSchema), authController.register);
-router.post('/login', validate(loginSchema), authController.login);
+router.post('/register', requireTurnstile, validate(registerSchema), authController.register);
+router.post('/login', requireTurnstile, validate(loginSchema), authController.login);
 router.post('/refresh-token', validate(refreshTokenSchema), authController.refreshToken);
 router.post('/logout', validate(logoutSchema), authController.logout);
 router.get('/verify-email', authController.verifyEmail);
-router.post('/forgot-password', validate(forgotPasswordSchema), authController.forgotPassword);
-router.post('/reset-password', validate(resetPasswordSchema), authController.resetPassword);
+router.post('/forgot-password', requireTurnstile, validate(forgotPasswordSchema), authController.forgotPassword);
+router.post('/reset-password', requireTurnstile, validate(resetPasswordSchema), authController.resetPassword);
 router.post('/google', validate(googleLoginSchema), authController.googleLogin);
 router.post('/sso-login', authController.ssoLogin);
 
