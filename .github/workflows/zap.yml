@@ -27,7 +27,7 @@ jobs:
 
       - name: ZAP Baseline Scan
         if: steps.gate.outputs.skip != 'true'
-        uses: zaproxy/action-baseline@v0.14.0
+        uses: zaproxy/action-baseline@v0.15.0
         with:
           target: ${{ steps.gate.outputs.target }}
           fail_action: false
