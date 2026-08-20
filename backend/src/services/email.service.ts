@@ -17,12 +17,28 @@ function parseFromAddress(from: string) {
   return { email: from.trim() };
 }
 
-function formatFrom() {
-  const p = parseFromAddress(env.email.from);
+function formatFrom(fromValue: string) {
+  const p = parseFromAddress(fromValue);
   return p.name ? `${p.name} <${p.email}>` : p.email;
 }
 
-async function sendViaResend(to: string, subject: string, html: string): Promise<void> {
+function fromForCategory(fromCategory: 'general' | 'account' | 'billing' | 'security' | 'support' = 'general') {
+  switch (fromCategory) {
+    case 'account':
+      return env.email.fromAccount || env.email.from;
+    case 'billing':
+      return env.email.fromBilling || env.email.from;
+    case 'security':
+      return env.email.fromSecurity || env.email.from;
+    case 'support':
+      return env.email.fromSupport || env.email.from;
+    case 'general':
+    default:
+      return env.email.fromGeneral || env.email.from;
+  }
+}
+
+async function sendViaResend(to: string, subject: string, html: string, fromValue: string): Promise<void> {
   const response = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: {
@@ -30,7 +46,7 @@ async function sendViaResend(to: string, subject: string, html: string): Promise
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      from: formatFrom(),
+      from: formatFrom(fromValue),
       to: [to],
       subject,
       html,
@@ -63,17 +79,23 @@ function getTransporter() {
 }
 
 export class EmailService {
-  static async sendEmail(to: string, subject: string, html: string): Promise<void> {
+  static async sendEmail(
+    to: string,
+    subject: string,
+    html: string,
+    fromCategory: 'general' | 'account' | 'billing' | 'security' | 'support' = 'general'
+  ): Promise<void> {
     if (!env.email.user && !useResend()) {
       logger.warn('Email not configured, skipping send', { to, subject });
       return;
     }
 
     try {
+      const fromValue = fromForCategory(fromCategory);
       if (useResend()) {
-        await sendViaResend(to, subject, html);
+        await sendViaResend(to, subject, html, fromValue);
       } else {
-        await getTransporter().sendMail({ from: env.email.from, to, subject, html });
+        await getTransporter().sendMail({ from: fromValue, to, subject, html });
       }
     } catch (err) {
       logger.error('Failed to send email', { to, subject, error: (err as Error).message });
@@ -94,6 +116,8 @@ export class EmailService {
         </p>
         <p style="color:#6b7280;font-size:14px">Or copy this link: ${url}</p>
       </div>`
+      ,
+      'account'
     );
   }
 
@@ -110,6 +134,8 @@ export class EmailService {
         </p>
         <p style="color:#6b7280;font-size:14px">Or copy this link: ${url}</p>
       </div>`
+      ,
+      'security'
     );
   }
 }

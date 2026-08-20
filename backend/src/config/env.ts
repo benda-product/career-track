@@ -40,6 +40,28 @@ export const env = {
     user: process.env.EMAIL_USER || '',
     pass: process.env.EMAIL_PASS || '',
     from: process.env.EMAIL_FROM || 'CareerTrack <noreply@careertrack.com>',
+    fromGeneral: process.env.EMAIL_FROM_GENERAL || process.env.EMAIL_FROM || 'CareerTrack <noreply@careertrack.com>',
+    fromAccount:
+      process.env.EMAIL_FROM_ACCOUNT ||
+      process.env.EMAIL_FROM_ACCOUNTS ||
+      process.env.EMAIL_FROM_GENERAL ||
+      process.env.EMAIL_FROM ||
+      'CareerTrack <noreply@careertrack.com>',
+    fromBilling:
+      process.env.EMAIL_FROM_BILLING ||
+      process.env.EMAIL_FROM_GENERAL ||
+      process.env.EMAIL_FROM ||
+      'CareerTrack <noreply@careertrack.com>',
+    fromSecurity:
+      process.env.EMAIL_FROM_SECURITY ||
+      process.env.EMAIL_FROM_GENERAL ||
+      process.env.EMAIL_FROM ||
+      'CareerTrack <noreply@careertrack.com>',
+    fromSupport:
+      process.env.EMAIL_FROM_SUPPORT ||
+      process.env.EMAIL_FROM_GENERAL ||
+      process.env.EMAIL_FROM ||
+      'CareerTrack <noreply@careertrack.com>',
   },
   google: {
     clientId: process.env.GOOGLE_CLIENT_ID || '',
