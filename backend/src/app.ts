@@ -13,7 +13,14 @@ import { paypalWebhook } from './modules/billing/billing.controller';
 
 const app = express();
 
-app.use(helmet());
+app.set('trust proxy', 1);
+app.use(
+  helmet({
+    contentSecurityPolicy: false,
+    crossOriginEmbedderPolicy: false,
+    crossOriginOpenerPolicy: { policy: 'same-origin-allow-popups' },
+  })
+);
 app.use(
   cors({
     origin: env.clientUrl,
