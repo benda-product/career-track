@@ -6,6 +6,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { MapPin, Building2, DollarSign, Loader2, CheckCircle2 } from 'lucide-react';
 import { SaveJobButton } from '@/components/jobs/save-job-button';
 import { ApplyWithResumeDialog } from '@/components/jobs/apply-with-resume-dialog';
+import { JobRecommendedAssessment } from '@/components/jobs/job-recommended-assessment';
 import { PageHeader } from '@/components/ui/page-header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -16,6 +17,7 @@ import { jobsService } from '@/services/jobs.service';
 import { getPrimaryResumeId, resumeService } from '@/services/resume.service';
 import { profileService } from '@/services/profile.service';
 import { useAuthStore } from '@/store/auth.store';
+import { dedupeSkills, sanitizeJobDescriptionHtml } from '@/lib/job-content';
 
 function JobDetailContent() {
   const { id } = useParams<{ id: string }>();
@@ -30,6 +32,7 @@ function JobDetailContent() {
   const [applyError, setApplyError] = useState('');
   const [redirecting, setRedirecting] = useState(false);
   const [applyDialogOpen, setApplyDialogOpen] = useState(false);
+  const [assessmentDetailsOpen, setAssessmentDetailsOpen] = useState(false);
 
   const { data: job, isLoading } = useQuery({
     queryKey: ['job', id],
@@ -166,7 +169,22 @@ function JobDetailContent() {
     remote?: boolean;
     description?: string;
     skills?: string[];
+    recommendedAssessment?: {
+      id: string;
+      name: string;
+      title: string;
+      recommendedFor: string;
+      bendaLanguage: string;
+      targetPath: string;
+      prerequisite?: string;
+      levels: string[];
+      optional: true;
+    } | null;
   };
+
+  const recommendedAssessment = jobData?.recommendedAssessment || null;
+  const uniqueSkills = dedupeSkills(jobData?.skills);
+  const descriptionHtml = sanitizeJobDescriptionHtml(jobData?.description);
 
   const jobForSave = {
     id: jobData.id || id,
@@ -211,7 +229,12 @@ function JobDetailContent() {
         title={jobData?.title || 'Job Details'}
         description={jobData?.company}
         action={
-          <div className="flex gap-2">
+          <div className="flex flex-wrap justify-end gap-2">
+            {recommendedAssessment ? (
+              <Button variant="outline" onClick={() => setAssessmentDetailsOpen(true)}>
+                View Recommended Test
+              </Button>
+            ) : null}
             <SaveJobButton job={jobForSave} variant="outline" showLabel />
             {hasApplied ? (
               <Button variant="secondary" disabled>
@@ -239,6 +262,14 @@ function JobDetailContent() {
         </p>
       ) : null}
 
+      {recommendedAssessment ? (
+        <JobRecommendedAssessment
+          assessment={recommendedAssessment}
+          detailsOpen={assessmentDetailsOpen}
+          onDetailsOpenChange={setAssessmentDetailsOpen}
+        />
+      ) : null}
+
       <Card>
         <CardContent className="space-y-4 p-6">
           <div className="flex flex-wrap gap-3 text-sm text-muted-foreground">
@@ -263,10 +294,10 @@ function JobDetailContent() {
             {jobData?.remote && <Badge>Remote</Badge>}
           </div>
 
-          {jobData?.skills?.length ? (
+          {uniqueSkills.length ? (
             <div className="flex flex-wrap gap-2">
-              {jobData.skills.map((skill, index) => (
-                <Badge key={`${skill}-${index}`} variant="outline">
+              {uniqueSkills.map((skill) => (
+                <Badge key={skill} variant="outline">
                   {skill}
                 </Badge>
               ))}
@@ -274,9 +305,16 @@ function JobDetailContent() {
           ) : null}
 
           <div className="prose prose-sm max-w-none">
-            <p className="whitespace-pre-wrap text-muted-foreground">
-              {jobData?.description || 'Job description will be loaded from the ATS integration.'}
-            </p>
+            {descriptionHtml ? (
+              <div
+                className="text-muted-foreground"
+                dangerouslySetInnerHTML={{ __html: descriptionHtml }}
+              />
+            ) : (
+              <p className="text-muted-foreground">
+                Job description will be loaded from the ATS integration.
+              </p>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -292,6 +330,15 @@ function JobDetailContent() {
         submitting={applyMutation.isPending}
         onSubmit={submitApplication}
         onCreateResume={() => void openCreateResume()}
+        recommendedAssessment={recommendedAssessment}
+        onViewRecommendedTest={
+          recommendedAssessment
+            ? () => {
+                setApplyDialogOpen(false);
+                setAssessmentDetailsOpen(true);
+              }
+            : undefined
+        }
       />
     </div>
   );

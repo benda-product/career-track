@@ -104,39 +104,70 @@ class AtsService {
     companyId?: string;
     candidateData?: Record<string, unknown>;
   }): Promise<{ applicationId: string }> {
-    try {
-      const response = await this.client.post<{ applicationId?: string; application?: { _id?: string } }>(
-        '/external/sync-application',
-        payload,
-        {
-          headers: {
-            'x-benda-key': env.internalSyncKey,
-            'x-benda-internal-key': env.internalSyncKey,
-          },
+    const maxAttempts = 3;
+    let lastError: unknown;
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+      try {
+        const response = await this.client.post<{ applicationId?: string; application?: { _id?: string } }>(
+          '/external/sync-application',
+          payload,
+          {
+            timeout: 60000,
+            headers: {
+              'x-benda-key': env.internalSyncKey,
+              'x-benda-internal-key': env.internalSyncKey,
+            },
+          }
+        );
+        const body = response.data;
+        const applicationId =
+          body.applicationId ?? body.application?._id?.toString();
+        if (!applicationId) {
+          throw new ApiError(502, 'ATS did not return an application id');
         }
-      );
-      const body = response.data;
-      const applicationId =
-        body.applicationId ?? body.application?._id?.toString();
-      if (!applicationId) {
-        throw new ApiError(502, 'ATS did not return an application id');
+        return { applicationId: String(applicationId) };
+      } catch (error) {
+        lastError = error;
+        const code = axios.isAxiosError(error) ? error.code : undefined;
+        const status = axios.isAxiosError(error) ? error.response?.status : undefined;
+        const message = axios.isAxiosError(error) ? error.response?.data?.message : undefined;
+        const transient =
+          !status &&
+          (code === 'ECONNRESET' ||
+            code === 'ECONNREFUSED' ||
+            code === 'ETIMEDOUT' ||
+            code === 'ECONNABORTED' ||
+            code === 'ERR_NETWORK');
+
+        logger.error('ATS sync-application failed', {
+          jobId: payload.jobId,
+          attempt,
+          status,
+          code,
+          message,
+          error,
+        });
+
+        if (error instanceof ApiError) throw error;
+        if (transient && attempt < maxAttempts) {
+          await new Promise((resolve) => setTimeout(resolve, 400 * attempt));
+          continue;
+        }
+
+        throw new ApiError(
+          status || 502,
+          message ||
+            (transient
+              ? 'ATS connection dropped while syncing the application. Please try again.'
+              : 'Failed to send application to ATS')
+        );
       }
-      return { applicationId: String(applicationId) };
-    } catch (error) {
-      const message =
-        axios.isAxiosError(error) ? error.response?.data?.message : undefined;
-      logger.error('ATS sync-application failed', {
-        jobId: payload.jobId,
-        status: axios.isAxiosError(error) ? error.response?.status : undefined,
-        message,
-        error,
-      });
-      if (error instanceof ApiError) throw error;
-      throw new ApiError(
-        axios.isAxiosError(error) ? error.response?.status || 502 : 502,
-        message || 'Failed to send application to ATS'
-      );
     }
+
+    throw lastError instanceof ApiError
+      ? lastError
+      : new ApiError(502, 'Failed to send application to ATS');
   }
 
   async getRecommendedJobs(candidateId: string, skills: string[]) {

@@ -15,7 +15,47 @@ import {
 import { extractJob, extractJobsList, NormalizedJob } from '../../utils/atsJob.mapper';
 import { recommendationService } from './recommendation.service';
 import { resumeBuilderService } from '../../services/resumeBuilder.service';
+import { skillTestService } from '../../services/skillTest.service';
+import {
+  FALLBACK_SKILL_CATALOG,
+  recommendAssessmentForJob,
+  type SkillCatalogItem,
+} from '../../utils/recommendedAssessment';
 import { ApiError } from '../../utils/apiError';
+
+let skillCatalogCache: SkillCatalogItem[] | null = null;
+let skillCatalogCacheAt = 0;
+const SKILL_CATALOG_TTL_MS = 5 * 60 * 1000;
+
+async function loadSkillCatalog(): Promise<SkillCatalogItem[]> {
+  const now = Date.now();
+  if (skillCatalogCache && now - skillCatalogCacheAt < SKILL_CATALOG_TTL_MS) {
+    return skillCatalogCache;
+  }
+
+  try {
+    const catalog = await skillTestService.getCatalog();
+    if (Array.isArray(catalog) && catalog.length) {
+      skillCatalogCache = catalog.map((item) => ({
+        id: item.id || item.bendaLanguage || '',
+        name: item.name || item.id || item.bendaLanguage || '',
+        bendaLanguage: item.bendaLanguage || item.id || '',
+        targetPath: item.targetPath,
+        prerequisite: item.prerequisite,
+        levels: Array.isArray(item.levels) ? item.levels : undefined,
+        active: item.active,
+      })).filter((item) => item.id || item.name || item.bendaLanguage);
+      skillCatalogCacheAt = now;
+      return skillCatalogCache;
+    }
+  } catch (error) {
+    logger.warn('SkillCheck catalog unavailable for job assessment recommendation', {
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+
+  return FALLBACK_SKILL_CATALOG;
+}
 
 function toAtsQuery(filters: JobSearchFilters): Record<string, unknown> {
   const params: Record<string, unknown> = { ...filters };
@@ -70,7 +110,29 @@ export class JobsService {
       }
     }
 
-    return { ...job, hasApplied, appliedResumeId, appliedResumeTitle };
+    const recommendedAssessment = await this.getRecommendedAssessment(job);
+
+    return { ...job, hasApplied, appliedResumeId, appliedResumeTitle, recommendedAssessment };
+  }
+
+  private async getRecommendedAssessment(job: NormalizedJob) {
+    try {
+      return recommendAssessmentForJob(
+        { title: job.title, skills: job.skills },
+        await loadSkillCatalog()
+      );
+    } catch (error) {
+      logger.warn('Failed to resolve recommended SkillCheck assessment', {
+        jobId: job.id,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return null;
+    }
+  }
+
+  private async loadJobForApply(jobId: string): Promise<NormalizedJob> {
+    const result = await atsService.getJob(jobId);
+    return extractJob(result);
   }
 
   private async resolveResumeForApply(email: string, resumeId?: string) {
@@ -197,7 +259,7 @@ export class JobsService {
       return { application, created: false };
     }
 
-    const job = await this.getJob(jobId);
+    const job = await this.loadJobForApply(jobId);
 
     const application = await applicationRepository.create({
       userId: new mongoose.Types.ObjectId(userId),

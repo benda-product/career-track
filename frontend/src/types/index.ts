@@ -132,6 +132,18 @@ export interface Profile {
   };
 }
 
+export interface RecommendedAssessment {
+  id: string;
+  name: string;
+  title: string;
+  recommendedFor: string;
+  bendaLanguage: string;
+  targetPath: string;
+  prerequisite?: string;
+  levels: string[];
+  optional: true;
+}
+
 export interface Job {
   id: string;
   title: string;
@@ -149,6 +161,7 @@ export interface Job {
   hasApplied?: boolean;
   appliedResumeId?: string;
   appliedResumeTitle?: string;
+  recommendedAssessment?: RecommendedAssessment | null;
 }
 
 export interface RecommendedJob extends Job {

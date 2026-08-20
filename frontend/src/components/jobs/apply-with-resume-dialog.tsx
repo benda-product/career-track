@@ -13,6 +13,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { getResumeId, type ResumeItem } from '@/services/resume.service';
 import { cn } from '@/lib/utils';
+import type { RecommendedAssessment } from '@/types';
 
 type Props = {
   open: boolean;
@@ -25,6 +26,8 @@ type Props = {
   submitting?: boolean;
   onSubmit: (resumeId: string) => void;
   onCreateResume: () => void;
+  recommendedAssessment?: RecommendedAssessment | null;
+  onViewRecommendedTest?: () => void;
 };
 
 export function ApplyWithResumeDialog({
@@ -38,6 +41,8 @@ export function ApplyWithResumeDialog({
   submitting = false,
   onSubmit,
   onCreateResume,
+  recommendedAssessment,
+  onViewRecommendedTest,
 }: Props) {
   const initialSelection = useMemo(() => {
     if (defaultResumeId) return defaultResumeId;
@@ -113,6 +118,25 @@ export function ApplyWithResumeDialog({
             You don&apos;t have any saved resumes yet. Create one in Resume Builder to apply.
           </p>
         )}
+
+        {recommendedAssessment ? (
+          <div className="rounded-lg border border-primary/20 bg-primary/5 px-3 py-2.5 text-sm">
+            <p className="font-medium">{recommendedAssessment.title}</p>
+            <p className="mt-0.5 text-muted-foreground">
+              Optional SkillCheck suggestion for this role. It is not required to submit your application.
+            </p>
+            {onViewRecommendedTest ? (
+              <Button
+                type="button"
+                variant="link"
+                className="mt-1 h-auto px-0"
+                onClick={onViewRecommendedTest}
+              >
+                View Recommended Test
+              </Button>
+            ) : null}
+          </div>
+        ) : null}
 
         <DialogFooter className="sm:justify-between">
           <Button type="button" variant="outline" onClick={onCreateResume} disabled={submitting}>

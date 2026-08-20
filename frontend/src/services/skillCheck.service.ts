@@ -137,6 +137,14 @@ export const skillCheckService = {
     window.location.href = session.url;
   },
 
+  openTargetPath: async (targetPath: string, returnUrl?: string) => {
+    const session = await skillCheckService.getSsoRedirect({
+      targetPath,
+      returnUrl,
+    });
+    window.location.href = session.url;
+  },
+
   openUpgradePlans: async (returnUrl?: string) => {
     const destination =
       returnUrl || `${window.location.origin}/skill-check?upgraded=skillcheck`;

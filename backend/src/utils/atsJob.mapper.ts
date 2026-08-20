@@ -1,3 +1,5 @@
+import type { RecommendedAssessment } from './recommendedAssessment';
+
 export interface NormalizedJob {
   id: string;
   title: string;
@@ -15,6 +17,7 @@ export interface NormalizedJob {
   hasApplied?: boolean;
   appliedResumeId?: string;
   appliedResumeTitle?: string;
+  recommendedAssessment?: RecommendedAssessment | null;
 }
 
 export function normalizeAtsJob(raw: Record<string, unknown>): NormalizedJob {
@@ -36,8 +39,11 @@ export function normalizeAtsJob(raw: Record<string, unknown>): NormalizedJob {
     hybrid: remoteMode === 'hybrid',
     description: raw.description as string | undefined,
     skills: [
-      ...((raw.skills as string[]) || []),
-      ...((raw.requiredSkills as string[]) || []),
+      ...new Set(
+        [...((raw.skills as string[]) || []), ...((raw.requiredSkills as string[]) || [])]
+          .map((skill) => String(skill || '').trim())
+          .filter(Boolean)
+      ),
     ],
     postedAt: String(raw.publishedAt ?? raw.postedAt ?? raw.createdAt ?? '') || undefined,
     minExperience:
