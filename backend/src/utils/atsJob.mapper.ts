@@ -18,6 +18,7 @@ export interface NormalizedJob {
   appliedResumeId?: string;
   appliedResumeTitle?: string;
   recommendedAssessment?: RecommendedAssessment | null;
+  applyUrl?: string;
 }
 
 export function normalizeAtsJob(raw: Record<string, unknown>): NormalizedJob {

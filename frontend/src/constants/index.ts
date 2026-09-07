@@ -1,8 +1,14 @@
-/** Browser calls same-origin `/api/v1` (proxied to backend). SSR uses full backend URL. */
+/** Browser calls same-origin `/api/v1` (proxied to backend). SSR uses internal backend URL in Docker. */
 export function getApiUrl() {
   if (typeof window !== 'undefined') {
     return '/api/v1';
   }
+
+  const backendUrl = process.env.BACKEND_URL?.replace(/\/$/, '');
+  if (backendUrl) {
+    return `${backendUrl}/api/v1`;
+  }
+
   return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5003/api/v1';
 }
 

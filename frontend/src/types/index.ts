@@ -162,6 +162,7 @@ export interface Job {
   appliedResumeId?: string;
   appliedResumeTitle?: string;
   recommendedAssessment?: RecommendedAssessment | null;
+  applyUrl?: string;
 }
 
 export interface RecommendedJob extends Job {

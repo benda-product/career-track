@@ -26,6 +26,13 @@ export const env = {
   ats: {
     apiUrl: process.env.ATS_BACKEND_URL || process.env.ATS_API_URL || 'http://localhost:5002/api',
   },
+  talentDesk: {
+    publicUrl:
+      process.env.TALENTDESK_PUBLIC_URL ||
+      process.env.TALENT_DESK_PUBLIC_URL ||
+      process.env.TALENT_DESK_CLIENT_URL ||
+      'http://localhost:3002',
+  },
   bendaInfotech: {
     apiUrl: process.env.BENDA_INFOTECH_API_URL || 'http://localhost:5004/api',
   },

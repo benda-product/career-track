@@ -291,7 +291,7 @@ export function RecommendedJobCard({
                 className="h-8 text-[10px] font-black bg-primary text-primary-foreground hover:bg-primary/90 flex items-center gap-1 cursor-pointer"
               >
                 {isApplying && <Loader2 className="h-3 w-3 animate-spin" />}
-                Quick Apply
+                Quick Apply on Talent Desk
               </Button>
             )}
           </div>

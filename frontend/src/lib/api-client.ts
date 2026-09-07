@@ -22,6 +22,7 @@ const processQueue = (error: unknown, token: string | null = null) => {
 };
 
 apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
+  config.baseURL = getApiUrl();
   if (typeof window !== 'undefined') {
     const token = localStorage.getItem('accessToken');
     if (token) config.headers.Authorization = `Bearer ${token}`;

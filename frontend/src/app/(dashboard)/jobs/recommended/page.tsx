@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Sparkles, RefreshCw, Briefcase, ChevronRight, CheckCircle2, AlertCircle, Loader2, ArrowUpDown, Flame, HelpCircle, Search, SlidersHorizontal, Calendar } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { Sparkles, RefreshCw, Briefcase, ChevronRight, Loader2, ArrowUpDown, Flame, HelpCircle, Search, SlidersHorizontal, Calendar, AlertCircle } from 'lucide-react';
 import { PageHeader } from '@/components/ui/page-header';
 import { Button } from '@/components/ui/button';
 import { ButtonLink } from '@/components/ui/link-button';
@@ -11,20 +11,14 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { RecommendedJobCard } from '@/components/jobs/recommended-job-card';
-import { ApplyWithResumeDialog } from '@/components/jobs/apply-with-resume-dialog';
 import { recommendedJobsService } from '@/services/recommendedJobs.service';
-import { jobsService } from '@/services/jobs.service';
-import { profileService } from '@/services/profile.service';
-import { resumeService, getPrimaryResumeId, getResumeId } from '@/services/resume.service';
 import { usePlanEntitlements } from '@/hooks/use-plan-entitlements';
 import Link from 'next/link';
-import { isAxiosError } from 'axios';
 import { RecommendedJob } from '@/types';
 import { cn } from '@/lib/utils';
+import { openTalentDeskApply } from '@/lib/talent-desk-apply';
 
 export default function RecommendedJobsPage() {
-  const queryClient = useQueryClient();
-  
   // Local Filtering / Sorting / Pagination States
   const [searchQuery, setSearchQuery] = useState('');
   const [minMatchScore, setMinMatchScore] = useState<number>(0);
@@ -32,12 +26,6 @@ export default function RecommendedJobsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 8;
 
-  // Inline Application States
-  const [selectedJob, setSelectedJob] = useState<RecommendedJob | null>(null);
-  const [applyDialogOpen, setApplyDialogOpen] = useState(false);
-  const [successMessage, setSuccessMessage] = useState('');
-  const [applyError, setApplyError] = useState('');
-  const [redirecting, setRedirecting] = useState(false);
   const { data: entitlements } = usePlanEntitlements();
   const jobFetchLimit = entitlements?.maxRecommendedJobs ?? 20;
   const hasPriorityInsights = Boolean(entitlements?.featureFlags?.priorityInsights);
@@ -56,100 +44,10 @@ export default function RecommendedJobsPage() {
     retry: false,
   });
 
-  // Fetch Profile & Resumes for Apply Dialog
-  const { data: profile } = useQuery({
-    queryKey: ['profile'],
-    queryFn: profileService.getProfile,
-    retry: false,
-  });
-
-  const { data: resumes, isLoading: resumesLoading } = useQuery({
-    queryKey: ['resumes'],
-    queryFn: resumeService.getResumes,
-    retry: false,
-  });
-
   const rawJobs = data?.items || [];
-  const resumeList = resumes || [];
-  const profileResumeId = profile?.user?.resumeId ?? null;
-
-  const defaultResumeId = useMemo(() => {
-    if (!selectedJob) return null;
-    if (selectedJob.appliedResumeId) return selectedJob.appliedResumeId;
-    if (profileResumeId) return profileResumeId;
-    return getPrimaryResumeId(resumeList);
-  }, [selectedJob, profileResumeId, resumeList]);
-
-  // Redirection link trigger for Resume Builder
-  async function openCreateResume() {
-    setApplyError('');
-    setRedirecting(true);
-    try {
-      const returnUrl = `${window.location.origin}/jobs/recommended?apply=1`;
-      await resumeService.openInResumeBuilder({
-        type: 'create',
-        returnUrl,
-      });
-    } catch (err: unknown) {
-      setRedirecting(false);
-      setApplyError(
-        err instanceof Error
-          ? err.message
-          : 'No resume found. Create one in Resume Builder with the same email as Career Track.'
-      );
-    }
-  }
-
-  // Application Mutation
-  const applyMutation = useMutation({
-    mutationFn: ({ jobId, resumeId }: { jobId: string; resumeId: string }) =>
-      jobsService.applyToJob(jobId, resumeId),
-    onSuccess: () => {
-      setApplyError('');
-      setApplyDialogOpen(false);
-      setSuccessMessage(`Application submitted successfully for ${selectedJob?.title}!`);
-      
-      // Invalidate queries to update job state and application lists
-      queryClient.invalidateQueries({ queryKey: ['recommended-jobs'] });
-      queryClient.invalidateQueries({ queryKey: ['applications'] });
-      
-      // Auto clear message after 4s
-      setTimeout(() => setSuccessMessage(''), 4000);
-      setSelectedJob(null);
-    },
-    onError: (err: unknown) => {
-      setSuccessMessage('');
-      const message = isAxiosError(err)
-        ? (err.response?.data as { message?: string } | undefined)?.message
-        : undefined;
-      setApplyError(message || (err instanceof Error ? err.message : 'Failed to submit application.'));
-    },
-  });
 
   const handleApplyClick = (job: RecommendedJob) => {
-    setSelectedJob(job);
-    setApplyError('');
-    setSuccessMessage('');
-
-    if (resumesLoading) return;
-
-    if (!resumeList.length) {
-      void openCreateResume();
-      return;
-    }
-
-    if (resumeList.length === 1 && defaultResumeId) {
-      applyMutation.mutate({ jobId: job.id, resumeId: defaultResumeId });
-      return;
-    }
-
-    setApplyDialogOpen(true);
-  };
-
-  const submitApplication = (resumeId: string) => {
-    if (selectedJob) {
-      applyMutation.mutate({ jobId: selectedJob.id, resumeId });
-    }
+    openTalentDeskApply(job.id, job.applyUrl);
   };
 
   // Priority insights (Career Pro) — fetched from gated API
@@ -254,27 +152,6 @@ export default function RecommendedJobsPage() {
           </p>
         </div>
       ) : null}
-
-      {successMessage && (
-        <div className="flex items-center gap-2 rounded-2xl border border-emerald-100 bg-emerald-50/50 p-4 text-xs text-emerald-800 shadow-sm">
-          <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />
-          {successMessage}
-        </div>
-      )}
-
-      {applyError && (
-        <div className="flex items-center gap-2 rounded-2xl border border-rose-100 bg-rose-50/50 p-4 text-xs text-rose-800 shadow-sm">
-          <AlertCircle className="h-4 w-4 shrink-0 text-rose-600" />
-          {applyError}
-        </div>
-      )}
-
-      {redirecting && (
-        <div className="flex items-center gap-2 rounded-2xl border border-sky-100 bg-sky-50/50 p-4 text-xs text-sky-800 shadow-sm">
-          <Loader2 className="h-4 w-4 animate-spin text-sky-600" />
-          Preparing Single Sign-On link to redirect you to Resume Builder to create your CV...
-        </div>
-      )}
 
       {isLoading ? (
         <div className="grid grid-cols-1 gap-4">
@@ -476,7 +353,6 @@ export default function RecommendedJobsPage() {
                   key={job.id}
                   job={job}
                   onApply={handleApplyClick}
-                  isApplying={applyMutation.isPending && selectedJob?.id === job.id}
                 />
               ))}
             </div>
@@ -511,22 +387,6 @@ export default function RecommendedJobsPage() {
             </div>
           )}
         </>
-      )}
-
-      {/* QUICK APPLY DIALOG DRAWER */}
-      {selectedJob && (
-        <ApplyWithResumeDialog
-          open={applyDialogOpen}
-          onOpenChange={setApplyDialogOpen}
-          jobTitle={selectedJob.title}
-          company={selectedJob.company}
-          resumes={resumeList}
-          defaultResumeId={defaultResumeId}
-          profileResumeId={profileResumeId}
-          submitting={applyMutation.isPending}
-          onSubmit={submitApplication}
-          onCreateResume={() => void openCreateResume()}
-        />
       )}
     </div>
   );
