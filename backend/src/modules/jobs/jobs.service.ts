@@ -49,20 +49,48 @@ async function loadSkillCatalog(): Promise<SkillCatalogItem[]> {
   return FALLBACK_SKILL_CATALOG;
 }
 
+const EMPLOYMENT_TYPE_TO_ATS: Record<string, string> = {
+  'full-time': 'full-time',
+  'part-time': 'part-time',
+  contract: 'contract',
+  internship: 'internship',
+  freelance: 'contract',
+};
+
+function normalizeEmploymentType(value?: string): string | undefined {
+  if (!value || value === 'All' || value === 'all') return undefined;
+  const normalized = value.trim().toLowerCase();
+  return EMPLOYMENT_TYPE_TO_ATS[normalized] || normalized.replace(/\s+/g, '-');
+}
+
 function toAtsQuery(filters: JobSearchFilters): Record<string, unknown> {
-  const params: Record<string, unknown> = { ...filters };
-  if (filters.query) {
-    params.search = filters.query;
-    params.title = filters.query;
-    delete params.query;
+  const params: Record<string, unknown> = {};
+
+  if (filters.query?.trim()) {
+    params.search = filters.query.trim();
+    params.title = filters.query.trim();
   }
-  if (filters.employmentType) {
-    params.jobType = filters.employmentType;
-    delete params.employmentType;
+  if (filters.location?.trim()) {
+    params.location = filters.location.trim();
   }
+  const jobType = normalizeEmploymentType(filters.employmentType);
+  if (jobType) {
+    params.jobType = jobType;
+  }
+  if (filters.experience) params.experienceLevel = filters.experience;
+  if (filters.salaryMin != null) params.salaryMin = filters.salaryMin;
+  if (filters.salaryMax != null) params.salaryMax = filters.salaryMax;
+  if (filters.industry) params.domain = filters.industry;
+  if (filters.remote) params.remoteMode = 'remote';
+  if (filters.hybrid) params.remoteMode = 'hybrid';
+  if (filters.page != null) params.page = filters.page;
+  if (filters.limit != null) params.limit = filters.limit;
   if (Array.isArray(filters.skills)) {
     params.skills = filters.skills.join(',');
+  } else if (typeof filters.skills === 'string' && filters.skills.trim()) {
+    params.skills = filters.skills.trim();
   }
+
   return params;
 }
 

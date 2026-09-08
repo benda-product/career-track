@@ -21,6 +21,15 @@ import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 import { openTalentDeskApply } from '@/lib/talent-desk-apply';
 
+function getApiErrorMessage(error: unknown, fallback: string) {
+  const axiosErr = error as { response?: { data?: { message?: string } }; message?: string };
+  const message = axiosErr.response?.data?.message || axiosErr.message;
+  if (message && !/^Request failed with status code \d+$/.test(message)) {
+    return message;
+  }
+  return fallback;
+}
+
 function JobsContent() {
 
   // Search filter states
@@ -33,8 +42,13 @@ function JobsContent() {
 
   const { data, isLoading, isFetching, isError, error, refetch } = useQuery({
     queryKey: ['jobs', query, location, employmentType],
-    queryFn: () => jobsService.searchJobs({ query, location, employmentType }),
-    retry: false,
+    queryFn: () =>
+      jobsService.searchJobs({
+        query: query.trim() || undefined,
+        location: location.trim() || undefined,
+        employmentType: employmentType && employmentType !== 'All' ? employmentType : undefined,
+      }),
+    retry: 1,
   });
 
   const jobs: Job[] = normalizeJobsPayload(data?.data);
@@ -76,7 +90,10 @@ function JobsContent() {
         <div className="rounded-2xl border border-rose-100 bg-rose-50/50 p-4 text-sm text-rose-800">
           <p className="font-semibold">Unable to load jobs from Talent Desk.</p>
           <p className="mt-1 text-xs text-rose-700">
-            {error instanceof Error ? error.message : 'Please confirm the Career Track and ATS backends are running, then retry.'}
+            {getApiErrorMessage(
+              error,
+              'Please confirm Talent Desk and Career Track backends are running, then retry.'
+            )}
           </p>
           <Button type="button" size="sm" variant="outline" className="mt-3" onClick={() => refetch()}>
             Try again

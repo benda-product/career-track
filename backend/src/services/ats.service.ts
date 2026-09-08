@@ -1,4 +1,4 @@
-import axios, { AxiosInstance } from 'axios';
+import axios, { AxiosInstance, AxiosRequestConfig } from 'axios';
 import { env } from '../config/env';
 import { ApiError } from '../utils/apiError';
 import { logger } from '../utils/logger';
@@ -18,6 +18,48 @@ export interface JobSearchFilters {
   limit?: number;
 }
 
+function atsApiBases(): string[] {
+  return [
+    env.ats.apiUrl,
+    env.ats.fallbackUrl,
+    'http://ats-backend:5002/api',
+    'http://localhost:5002/api',
+  ]
+    .map((value) => String(value || '').trim().replace(/\/$/, ''))
+    .filter(Boolean)
+    .filter((value, index, all) => all.indexOf(value) === index);
+}
+
+function isTransientAxiosError(error: unknown): boolean {
+  if (!axios.isAxiosError(error)) return false;
+  const status = error.response?.status;
+  if (status === 502 || status === 503 || status === 504) return true;
+  if (status) return false;
+  const code = error.code;
+  return (
+    code === 'ECONNRESET' ||
+    code === 'ECONNREFUSED' ||
+    code === 'ETIMEDOUT' ||
+    code === 'ECONNABORTED' ||
+    code === 'ERR_NETWORK' ||
+    code === 'ENOTFOUND'
+  );
+}
+
+function toApiError(error: unknown): ApiError {
+  if (error instanceof ApiError) return error;
+  if (axios.isAxiosError(error)) {
+    const status = error.response?.status || 502;
+    const message =
+      (error.response?.data as { message?: string } | undefined)?.message ||
+      (isTransientAxiosError(error)
+        ? 'Talent Desk is temporarily unavailable. Please try again.'
+        : 'ATS service unavailable');
+    return new ApiError(status, message);
+  }
+  return new ApiError(502, 'ATS service unavailable');
+}
+
 class AtsService {
   private client: AxiosInstance;
 
@@ -31,20 +73,59 @@ class AtsService {
     });
   }
 
-  private async request<T>(method: string, url: string, data?: unknown, params?: Record<string, unknown>): Promise<T> {
-    try {
-      const response = await this.client.request<T>({ method, url, data, params });
-      return response.data;
-    } catch (error) {
-      logger.error('ATS API error', { url, error });
-      if (axios.isAxiosError(error)) {
-        throw new ApiError(
-          error.response?.status || 502,
-          error.response?.data?.message || 'ATS service unavailable'
-        );
+  private async request<T>(
+    method: string,
+    url: string,
+    data?: unknown,
+    params?: Record<string, unknown>,
+    extraConfig?: AxiosRequestConfig
+  ): Promise<T> {
+    const bases = atsApiBases();
+    let lastError: unknown;
+
+    for (const base of bases) {
+      for (let attempt = 1; attempt <= 2; attempt += 1) {
+        try {
+          const response = await axios.request<T>({
+            method,
+            url: `${base}${url}`,
+            data,
+            params,
+            timeout: 30000,
+            headers: {
+              'Content-Type': 'application/json',
+              ...(extraConfig?.headers || {}),
+            },
+            ...extraConfig,
+          });
+          return response.data;
+        } catch (error) {
+          lastError = error;
+          const transient = isTransientAxiosError(error);
+          const status = axios.isAxiosError(error) ? error.response?.status : undefined;
+
+          logger.warn('ATS API request failed', {
+            base,
+            url,
+            attempt,
+            status,
+            code: axios.isAxiosError(error) ? error.code : undefined,
+          });
+
+          if (transient && attempt < 2) {
+            await new Promise((resolve) => setTimeout(resolve, 400 * attempt));
+            continue;
+          }
+
+          if (!transient) {
+            throw toApiError(error);
+          }
+        }
       }
-      throw new ApiError(502, 'ATS service unavailable');
     }
+
+    logger.error('ATS API error — all bases exhausted', { url, error: lastError });
+    throw toApiError(lastError);
   }
 
   async searchJobs(filters: JobSearchFilters) {
@@ -52,7 +133,7 @@ class AtsService {
   }
 
   async getJob(jobId: string) {
-    return this.request('GET', `/jobs/${jobId}`);
+    return this.request('GET', `/jobs/${encodeURIComponent(jobId)}`);
   }
 
   async getJobMeta(jobId: string): Promise<{
@@ -63,7 +144,7 @@ class AtsService {
     try {
       const data = await this.request<{ job?: Record<string, unknown> } | Record<string, unknown>>(
         'GET',
-        `/jobs/${jobId}`
+        `/jobs/${encodeURIComponent(jobId)}`
       );
       const raw =
         data && typeof data === 'object' && 'job' in data && data.job
@@ -85,7 +166,7 @@ class AtsService {
   }
 
   async applyToJob(jobId: string, candidateId: string, resumeId: string, coverLetter?: string) {
-    return this.request('POST', `/jobs/${jobId}/apply`, {
+    return this.request('POST', `/jobs/${encodeURIComponent(jobId)}/apply`, {
       candidateId,
       resumeId,
       coverLetter,
@@ -175,7 +256,7 @@ class AtsService {
   }
 
   async getApplicationStatus(atsApplicationId: string) {
-    return this.request('GET', `/applications/${atsApplicationId}`);
+    return this.request('GET', `/applications/${encodeURIComponent(atsApplicationId)}`);
   }
 
   async syncCandidate(payload: Record<string, unknown>): Promise<void> {

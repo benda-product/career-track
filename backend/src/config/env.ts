@@ -25,6 +25,7 @@ export const env = {
   },
   ats: {
     apiUrl: process.env.ATS_BACKEND_URL || process.env.ATS_API_URL || 'http://localhost:5002/api',
+    fallbackUrl: process.env.ATS_API_FALLBACK_URL || '',
   },
   talentDesk: {
     publicUrl:
