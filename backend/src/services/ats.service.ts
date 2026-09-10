@@ -18,16 +18,39 @@ export interface JobSearchFilters {
   limit?: number;
 }
 
-function atsApiBases(): string[] {
-  return [
+function normalizeBaseUrl(value: string): string {
+  return String(value || '').trim().replace(/\/$/, '');
+}
+
+function isLocalhostBase(base: string): boolean {
+  return /^https?:\/\/(localhost|127\.0\.0\.1)(:|\/|$)/i.test(base);
+}
+
+export function atsApiBases(): string[] {
+  const publicBase = env.ats.publicApiUrl
+    ? normalizeBaseUrl(env.ats.publicApiUrl)
+    : env.talentDesk.publicUrl && !isLocalhostBase(env.talentDesk.publicUrl)
+      ? `${normalizeBaseUrl(env.talentDesk.publicUrl)}/api`
+      : '';
+
+  const internalBases = [
     env.ats.apiUrl,
     env.ats.fallbackUrl,
     'http://ats-backend:5002/api',
-    'http://localhost:5002/api',
-  ]
-    .map((value) => String(value || '').trim().replace(/\/$/, ''))
+    'http://host.docker.internal:5002/api',
+  ].map(normalizeBaseUrl);
+
+  const devBases = ['http://localhost:5002/api'].map(normalizeBaseUrl);
+
+  const ordered =
+    env.nodeEnv === 'production' && publicBase
+      ? [publicBase, ...internalBases, ...devBases]
+      : [...internalBases, publicBase, ...devBases];
+
+  return ordered
     .filter(Boolean)
-    .filter((value, index, all) => all.indexOf(value) === index);
+    .filter((base) => env.nodeEnv !== 'production' || !isLocalhostBase(base))
+    .filter((base, index, all) => all.indexOf(base) === index);
 }
 
 function isTransientAxiosError(error: unknown): boolean {
@@ -58,6 +81,25 @@ function toApiError(error: unknown): ApiError {
     return new ApiError(status, message);
   }
   return new ApiError(502, 'ATS service unavailable');
+}
+
+export async function probeAtsConnectivity(): Promise<{ ok: boolean; base?: string; bases: string[] }> {
+  const bases = atsApiBases();
+  for (const base of bases) {
+    try {
+      const response = await axios.get(`${base}/health`, { timeout: 8000 });
+      if (response.status >= 200 && response.status < 300) {
+        return { ok: true, base, bases };
+      }
+    } catch (error) {
+      logger.warn('ATS connectivity probe failed', {
+        base,
+        status: axios.isAxiosError(error) ? error.response?.status : undefined,
+        code: axios.isAxiosError(error) ? error.code : undefined,
+      });
+    }
+  }
+  return { ok: false, bases };
 }
 
 class AtsService {
@@ -117,14 +159,13 @@ class AtsService {
             continue;
           }
 
-          if (!transient) {
-            throw toApiError(error);
-          }
+          // Try the next base instead of aborting on the first non-2xx from a wrong host.
+          break;
         }
       }
     }
 
-    logger.error('ATS API error — all bases exhausted', { url, error: lastError });
+    logger.error('ATS API error — all bases exhausted', { url, error: lastError, bases });
     throw toApiError(lastError);
   }
 

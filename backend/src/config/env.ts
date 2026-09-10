@@ -24,8 +24,14 @@ export const env = {
     clientUrl: process.env.SKILL_TEST_CLIENT_URL || 'http://localhost:3005',
   },
   ats: {
-    apiUrl: process.env.ATS_BACKEND_URL || process.env.ATS_API_URL || 'http://localhost:5002/api',
+    // Prefer ATS_API_URL — docker-compose sets this explicitly in prod/dev.
+    apiUrl: process.env.ATS_API_URL || process.env.ATS_BACKEND_URL || 'http://localhost:5002/api',
     fallbackUrl: process.env.ATS_API_FALLBACK_URL || '',
+    publicApiUrl:
+      process.env.ATS_PUBLIC_API_URL ||
+      (process.env.TALENTDESK_PUBLIC_URL
+        ? `${String(process.env.TALENTDESK_PUBLIC_URL).replace(/\/$/, '')}/api`
+        : ''),
   },
   talentDesk: {
     publicUrl:

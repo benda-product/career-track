@@ -12,6 +12,7 @@ import coursesRoutes from './courses.routes';
 import billingRoutes from './billing.routes';
 import coachingRoutes from './coaching.routes';
 import internalRoutes from './internal.routes';
+import { atsApiBases, probeAtsConnectivity } from '../services/ats.service';
 
 const router = Router();
 
@@ -32,6 +33,21 @@ router.use('/mock-interview', coachingRoutes);
 
 router.get('/health', (_req, res) => {
   res.json({ success: true, message: 'CareerTrack API is running', timestamp: new Date().toISOString() });
+});
+
+router.get('/health/integrations', async (_req, res) => {
+  const ats = await probeAtsConnectivity();
+  res.json({
+    success: true,
+    timestamp: new Date().toISOString(),
+    integrations: {
+      talentDesk: {
+        ok: ats.ok,
+        base: ats.base || null,
+        bases: ats.bases,
+      },
+    },
+  });
 });
 
 export default router;

@@ -9,7 +9,21 @@ import { getParam } from '../../utils/params';
 
 export class JobsController {
   searchJobs = asyncHandler(async (req: AuthRequest, res: Response) => {
-    const jobs = await jobsService.searchJobs(req.query as never);
+    const { query, location, employmentType, skills, experience, industry, remote, hybrid, page, limit } =
+      req.query;
+
+    const jobs = await jobsService.searchJobs({
+      query: typeof query === 'string' ? query : undefined,
+      location: typeof location === 'string' ? location : undefined,
+      employmentType: typeof employmentType === 'string' ? employmentType : undefined,
+      skills: typeof skills === 'string' ? skills : undefined,
+      experience: typeof experience === 'string' ? experience : undefined,
+      industry: typeof industry === 'string' ? industry : undefined,
+      remote: remote === 'true' ? true : undefined,
+      hybrid: hybrid === 'true' ? true : undefined,
+      page: page != null ? Number(page) : undefined,
+      limit: limit != null ? Number(limit) : undefined,
+    });
     sendSuccess(res, jobs);
   });
 
