@@ -2,6 +2,8 @@ import { profileRepository } from '../../repositories/profile.repository';
 import { userRepository } from '../../repositories/user.repository';
 import { syncCandidateToTalentPool } from '../../services/talentPool.service';
 import { CloudinaryService } from '../../services/cloudinary.service';
+import { skillCheckProfileSyncService } from '../../services/skillCheckProfileSync.service';
+import { resumeAiProfileSyncService } from '../../services/resumeAiProfileSync.service';
 import { env } from '../../config/env';
 import { ApiError } from '../../utils/apiError';
 import { computeProfileCompletion, getProfileCompletionDetails } from './profile.completion';
@@ -41,6 +43,13 @@ export class ProfileService {
 
     const profile = await profileRepository.getOrCreate(userId);
 
+    if (profileUpdates.careerPreferences?.willingToRelocate !== undefined) {
+      profileUpdates.careerPreferences = {
+        ...profile.careerPreferences,
+        ...profileUpdates.careerPreferences,
+      };
+    }
+
     if (profileUpdates.linkedinProfile !== undefined) {
       const otherLinks = (profile.socialLinks || []).filter(
         (link) => link.platform?.toLowerCase() !== 'linkedin'
@@ -60,8 +69,22 @@ export class ProfileService {
     await profileRepository.update(userId, { completionScore });
 
     void syncCandidateToTalentPool(userId);
+    void this.syncToEcosystem(userId);
 
     return response;
+  }
+
+  private async syncToEcosystem(userId: string): Promise<void> {
+    const [user, profile] = await Promise.all([
+      userRepository.findById(userId),
+      profileRepository.getOrCreate(userId),
+    ]);
+    if (!user) return;
+
+    await Promise.all([
+      skillCheckProfileSyncService.syncProfile(user, profile),
+      resumeAiProfileSyncService.syncProfile(user, profile),
+    ]);
   }
 
   async uploadProfilePhoto(
@@ -92,6 +115,47 @@ export class ProfileService {
     await profileRepository.update(userId, { completionScore });
 
     void syncCandidateToTalentPool(userId);
+    void this.syncToEcosystem(userId);
+
+    return response;
+  }
+
+  async uploadResume(
+    userId: string,
+    file: Express.Multer.File
+  ): Promise<CandidateProfileResponse> {
+    if (!file) {
+      throw new ApiError(400, 'Resume file is required');
+    }
+
+    if (!env.cloudinary.cloudName) {
+      throw new ApiError(503, 'Resume upload is not configured');
+    }
+
+    const extension = file.mimetype.includes('word') ? 'docx' : 'pdf';
+    const filename = `resume-${userId}-${Date.now()}.${extension}`;
+
+    const { url } = await CloudinaryService.uploadBuffer(file.buffer, {
+      folder: 'careertrack/resumes',
+      filename,
+      mimeType: file.mimetype,
+    });
+
+    await profileRepository.update(userId, {
+      resumeUrl: url,
+      resumeFileName: file.originalname,
+    });
+
+    const response = await this.buildProfileResponse(userId);
+    const completionScore = response.profileCompletion;
+    await profileRepository.update(userId, { completionScore });
+
+    const user = await userRepository.findById(userId);
+    void syncCandidateToTalentPool(userId);
+    void this.syncToEcosystem(userId);
+    if (user) {
+      void resumeAiProfileSyncService.syncResumeUpload(user, file);
+    }
 
     return response;
   }

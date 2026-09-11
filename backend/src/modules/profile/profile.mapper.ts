@@ -169,8 +169,23 @@ export function toCandidateProfileView(user: IUser, profile: IProfile): Candidat
     emailVerified: user.isEmailVerified,
     resumeId: profile.resumeId,
     resumeUrl: profile.resumeUrl,
+    resumeFileName: profile.resumeFileName,
     noticePeriodDays: profile.noticePeriodDays,
     employmentStatus: profile.employmentStatus,
+    summary: profile.summary,
+    locationText: profile.location,
+    age: profile.age,
+    visaStatus: profile.visaStatus,
+    majorSkill: profile.majorSkill,
+    courses: profile.courses || [],
+    isWorking: profile.isWorking ?? false,
+    totalExperienceBand: profile.totalExperienceBand,
+    domainExperiences: (profile.domainExperiences || []).map((exp) => ({
+      domain: exp.domain || '',
+      yearsOfExperience: exp.yearsOfExperience ?? 0,
+    })),
+    willingToRelocate: profile.careerPreferences?.willingToRelocate ?? false,
+    professionalProfileCompleted: profile.professionalProfileCompleted ?? false,
   };
 }
 
@@ -285,6 +300,38 @@ export function mapUpdatePayload(
       expiryDate: cert.expiryDate ? new Date(cert.expiryDate) : undefined,
       credentialId: cert.credentialId,
     }));
+  }
+
+  if (body.summary !== undefined) profileUpdates.summary = String(body.summary || '');
+  if (body.locationText !== undefined) profileUpdates.location = String(body.locationText || '');
+  if (body.age !== undefined) profileUpdates.age = String(body.age || '');
+  if (body.visaStatus !== undefined) profileUpdates.visaStatus = String(body.visaStatus || '');
+  if (body.majorSkill !== undefined) profileUpdates.majorSkill = String(body.majorSkill || '');
+  if (body.courses !== undefined) profileUpdates.courses = body.courses as string[];
+  if (body.isWorking !== undefined) profileUpdates.isWorking = Boolean(body.isWorking);
+  if (body.totalExperienceBand !== undefined) {
+    profileUpdates.totalExperienceBand = String(body.totalExperienceBand || '');
+  }
+  if (Array.isArray(body.domainExperiences)) {
+    profileUpdates.domainExperiences = (body.domainExperiences as { domain?: string; yearsOfExperience?: number }[]).map(
+      (exp) => ({
+        domain: exp.domain || '',
+        yearsOfExperience: Number(exp.yearsOfExperience) || 0,
+      })
+    );
+  }
+  if (body.willingToRelocate !== undefined) {
+    profileUpdates.careerPreferences = {
+      desiredRoles: [],
+      desiredLocations: [],
+      employmentTypes: [],
+      remotePreference: 'any',
+      industries: [],
+      willingToRelocate: Boolean(body.willingToRelocate),
+    };
+  }
+  if (body.professionalProfileCompleted !== undefined) {
+    profileUpdates.professionalProfileCompleted = Boolean(body.professionalProfileCompleted);
   }
 
   return { userUpdates, profileUpdates };

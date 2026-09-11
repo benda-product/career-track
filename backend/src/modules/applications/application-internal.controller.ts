@@ -3,6 +3,7 @@ import { asyncHandler } from '../../utils/asyncHandler';
 import { sendSuccess } from '../../utils/response';
 import { ApiError } from '../../utils/apiError';
 import { syncApplicationStageFromAts } from '../../services/applicationSync.service';
+import { provisionApplicationFromAtsApply } from '../../services/applicationProvision.service';
 
 export class ApplicationInternalController {
   syncStageFromAts = asyncHandler(async (req: Request, res: Response) => {
@@ -36,6 +37,16 @@ export class ApplicationInternalController {
     });
 
     sendSuccess(res, result, result.synced ? 'Application stage synced' : 'No sync required');
+  });
+
+  createFromAtsApply = asyncHandler(async (req: Request, res: Response) => {
+    const result = await provisionApplicationFromAtsApply(req.body || {});
+
+    if (!result.ok) {
+      throw new ApiError(400, result.reason || 'Unable to provision Career Track application');
+    }
+
+    sendSuccess(res, result, 'Career Track application ready');
   });
 }
 

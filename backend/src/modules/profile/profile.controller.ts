@@ -20,6 +20,11 @@ export class ProfileController {
     sendSuccess(res, profile, 'Profile photo updated');
   });
 
+  uploadResume = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const profile = await profileService.uploadResume(req.user!.userId, req.file!);
+    sendSuccess(res, profile, 'Resume uploaded');
+  });
+
   getCompletion = asyncHandler(async (req: AuthRequest, res: Response) => {
     const completion = await profileService.getCompletion(req.user!.userId);
     sendSuccess(res, completion);

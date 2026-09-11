@@ -22,8 +22,8 @@ export default function ApplicationStatusPage() {
   const [statusFilter, setStatusFilter] = useState<ApplicationStage | 'all'>('all');
 
   const { data, isLoading } = useQuery({
-    queryKey: ['applications'],
-    queryFn: () => applicationsService.getApplications(1, 100),
+    queryKey: ['applications', 'status-sync'],
+    queryFn: () => applicationsService.getApplications(1, 100, undefined, { sync: true }),
     retry: false,
   });
 

@@ -85,6 +85,18 @@ export interface CandidateProfileUser {
   profileCompletion?: number;
   resumeId?: string;
   resumeUrl?: string;
+  resumeFileName?: string;
+  summary?: string;
+  locationText?: string;
+  age?: string;
+  visaStatus?: string;
+  majorSkill?: string;
+  courses?: string[];
+  isWorking?: boolean;
+  totalExperienceBand?: string;
+  domainExperiences?: { domain: string; yearsOfExperience: number }[];
+  willingToRelocate?: boolean;
+  professionalProfileCompleted?: boolean;
 }
 
 export interface CandidateProfileResponse {

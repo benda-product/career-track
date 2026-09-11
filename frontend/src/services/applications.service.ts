@@ -2,9 +2,14 @@ import apiClient from '@/lib/api-client';
 import { ApiResponse, Application, ApplicationStage } from '@/types';
 
 export const applicationsService = {
-  getApplications: async (page = 1, limit = 20, stage?: ApplicationStage) => {
+  getApplications: async (
+    page = 1,
+    limit = 20,
+    stage?: ApplicationStage,
+    options?: { sync?: boolean }
+  ) => {
     const res = await apiClient.get<ApiResponse<Application[]>>('/applications', {
-      params: { page, limit, stage },
+      params: { page, limit, stage, sync: options?.sync ? 'true' : undefined },
     });
     return res.data;
   },

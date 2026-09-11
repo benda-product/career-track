@@ -10,6 +10,7 @@ import {
 } from '../../utils/token';
 import { EmailService } from '../../services/email.service';
 import { syncCandidateToTalentPool } from '../../services/talentPool.service';
+import { backfillUserApplicationsFromAts } from '../../services/applicationBackfill.service';
 import { ApiError } from '../../utils/apiError';
 import { JwtPayload } from '../../types';
 import {
@@ -448,6 +449,12 @@ export class AuthService {
       await userRepository.update(user._id.toString(), { lastLogin: new Date() });
     }
 
+    void backfillUserApplicationsFromAts(
+      user._id.toString(),
+      user.email,
+      `${user.firstName || ''} ${user.lastName || ''}`.trim()
+    );
+
     const tokens = this.buildTokens(user);
     await userRepository.addRefreshToken(user._id.toString(), tokens.refreshToken);
 
@@ -510,6 +517,12 @@ export class AuthService {
       products: payload.products || [CENTRAL_AUTH_PRODUCTS.CAREER_TRACK],
       sourceProduct: CENTRAL_AUTH_PRODUCTS.CAREER_TRACK,
     });
+
+    void backfillUserApplicationsFromAts(
+      user._id.toString(),
+      user.email,
+      `${user.firstName || ''} ${user.lastName || ''}`.trim()
+    );
 
     return user;
   }

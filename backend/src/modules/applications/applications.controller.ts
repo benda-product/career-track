@@ -7,19 +7,42 @@ import { sendSuccess } from '../../utils/response';
 import { ApiError } from '../../utils/apiError';
 import { ApplicationStage } from '../../types';
 import { getParam } from '../../utils/params';
+import { backfillUserApplicationsFromAts } from '../../services/applicationBackfill.service';
+import { userRepository } from '../../repositories/user.repository';
 
 export class ApplicationsController {
   getApplications = asyncHandler(async (req: AuthRequest, res: Response) => {
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 20;
     const stage = req.query.stage as ApplicationStage | undefined;
+    const userId = req.user!.userId;
+    const email = req.user!.email;
 
-    const { applications, total } = await applicationRepository.findByUserId(
-      req.user!.userId,
+    const shouldSync =
+      req.query.sync === 'true' ||
+      req.query.sync === '1' ||
+      req.query.refresh === 'true';
+
+    let { applications, total } = await applicationRepository.findByUserId(
+      userId,
       page,
       limit,
       stage
     );
+
+    if (email && (shouldSync || total === 0)) {
+      const user = await userRepository.findById(userId);
+      const fullName = user
+        ? `${user.firstName || ''} ${user.lastName || ''}`.trim()
+        : undefined;
+      await backfillUserApplicationsFromAts(userId, email, fullName);
+      ({ applications, total } = await applicationRepository.findByUserId(
+        userId,
+        page,
+        limit,
+        stage
+      ));
+    }
 
     sendSuccess(res, applications, 'Success', 200, {
       page,

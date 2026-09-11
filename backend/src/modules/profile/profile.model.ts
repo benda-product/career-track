@@ -83,6 +83,11 @@ export interface ILocationDetail {
   country?: string;
 }
 
+export interface IDomainExperience {
+  domain: string;
+  yearsOfExperience: number;
+}
+
 export interface IProfile extends Document {
   userId: Types.ObjectId;
   headline?: string;
@@ -113,6 +118,15 @@ export interface IProfile extends Document {
   employmentStatus?: 'actively_looking' | 'open_to_opportunities' | 'not_looking';
   careerPreferences: ICareerPreferences;
   completionScore: number;
+  age?: string;
+  visaStatus?: string;
+  majorSkill?: string;
+  courses?: string[];
+  isWorking?: boolean;
+  totalExperienceBand?: string;
+  domainExperiences?: IDomainExperience[];
+  professionalProfileCompleted?: boolean;
+  resumeFileName?: string;
 }
 
 const profileSchema = new Schema<IProfile>(
@@ -222,6 +236,23 @@ const profileSchema = new Schema<IProfile>(
       willingToRelocate: { type: Boolean, default: false },
     },
     completionScore: { type: Number, default: 0, min: 0, max: 100 },
+    age: {
+      type: String,
+      enum: ['18-24', '25-30', '31-35', '36-40', '40+'],
+    },
+    visaStatus: String,
+    majorSkill: String,
+    courses: [String],
+    isWorking: { type: Boolean, default: false },
+    totalExperienceBand: String,
+    domainExperiences: [
+      {
+        domain: String,
+        yearsOfExperience: Number,
+      },
+    ],
+    professionalProfileCompleted: { type: Boolean, default: false },
+    resumeFileName: String,
   },
   { timestamps: true }
 );

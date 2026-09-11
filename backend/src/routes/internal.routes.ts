@@ -15,6 +15,11 @@ router.post(
   requireInternalKey,
   applicationInternalController.syncStageFromAts
 );
+router.post(
+  '/applications/from-ats-apply',
+  requireInternalKey,
+  applicationInternalController.createFromAtsApply
+);
 router.get(
   '/benda-infotech/account-lookup',
   requireInternalKey,

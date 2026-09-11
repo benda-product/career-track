@@ -42,6 +42,11 @@ export interface SkillAssessmentView {
   platform: 'benda-test';
 }
 
+export interface DomainExperienceView {
+  domain: string;
+  yearsOfExperience: number;
+}
+
 export interface CandidateProfileView {
   _id: string;
   fullName: string;
@@ -50,11 +55,14 @@ export interface CandidateProfileView {
   phoneNumber: string;
   phone?: string;
   location?: LocationDetail;
+  locationText?: string;
+  summary?: string;
   skills: string[];
   technicalSkills: string[];
   softSkills: string[];
   totalExperienceYears: number;
   experienceYears?: number;
+  totalExperienceBand?: string;
   workExperiences: WorkExperienceView[];
   educations: EducationView[];
   certifications: CertificationView[];
@@ -69,8 +77,17 @@ export interface CandidateProfileView {
   profileCompletion?: number;
   resumeId?: string;
   resumeUrl?: string;
+  resumeFileName?: string;
   noticePeriodDays?: number;
   employmentStatus?: 'actively_looking' | 'open_to_opportunities' | 'not_looking';
+  age?: string;
+  visaStatus?: string;
+  majorSkill?: string;
+  courses?: string[];
+  isWorking?: boolean;
+  domainExperiences?: DomainExperienceView[];
+  willingToRelocate?: boolean;
+  professionalProfileCompleted?: boolean;
 }
 
 export interface CandidateProfileResponse {

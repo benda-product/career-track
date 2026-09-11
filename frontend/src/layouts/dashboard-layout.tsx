@@ -1,23 +1,45 @@
 'use client';
 
-import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 import { Sidebar } from '@/components/resume/Sidebar';
 import { TopNavbar } from '@/components/resume/TopNavbar';
 import { SocketProvider } from '@/components/providers/socket-provider';
 import { useAuthStore } from '@/store/auth.store';
+import { profileService } from '@/services/profile.service';
 
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
+  const pathname = usePathname();
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const hasHydrated = useAuthStore((s) => s.hasHydrated);
+  const [profileChecked, setProfileChecked] = useState(false);
 
   useEffect(() => {
     if (hasHydrated && !isAuthenticated) {
       router.push('/auth/login');
     }
   }, [hasHydrated, isAuthenticated, router]);
+
+  useEffect(() => {
+    if (!hasHydrated || !isAuthenticated) return;
+    if (pathname?.startsWith('/onboarding') || pathname?.startsWith('/applications')) {
+      setProfileChecked(true);
+      return;
+    }
+
+    profileService
+      .getProfile()
+      .then((res) => {
+        if (!res.user.professionalProfileCompleted) {
+          router.replace('/onboarding/professional');
+          return;
+        }
+        setProfileChecked(true);
+      })
+      .catch(() => setProfileChecked(true));
+  }, [hasHydrated, isAuthenticated, pathname, router]);
 
   if (!hasHydrated) {
     return (
@@ -29,14 +51,23 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
 
   if (!isAuthenticated) return null;
 
+  if (!profileChecked && !pathname?.startsWith('/onboarding')) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
   const bendaHubUrl = process.env.NEXT_PUBLIC_BENDA_URL || 'http://localhost:3004';
+  const isOnboarding = pathname?.startsWith('/onboarding');
 
   return (
     <SocketProvider>
       <div className="flex min-h-screen bg-slate-50/50">
-        <Sidebar className="hidden lg:flex" />
+        {!isOnboarding && <Sidebar className="hidden lg:flex" />}
         <div className="flex flex-1 flex-col">
-          <TopNavbar />
+          {!isOnboarding && <TopNavbar />}
           <main className="flex-1 overflow-auto p-4 lg:p-6 bg-slate-50/30">
             {children}
           </main>

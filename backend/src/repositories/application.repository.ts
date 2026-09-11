@@ -1,5 +1,10 @@
+import { Types } from 'mongoose';
 import { Application, IApplication } from '../modules/applications/application.model';
 import { ApplicationStage } from '../types';
+
+function toUserObjectId(userId: string) {
+  return Types.ObjectId.isValid(userId) ? new Types.ObjectId(userId) : userId;
+}
 
 export class ApplicationRepository {
   async findByUserId(
@@ -8,7 +13,10 @@ export class ApplicationRepository {
     limit = 20,
     stage?: ApplicationStage
   ): Promise<{ applications: IApplication[]; total: number }> {
-    const filter: Record<string, unknown> = { userId, isSaved: false };
+    const filter: Record<string, unknown> = {
+      userId: toUserObjectId(userId),
+      isSaved: false,
+    };
     if (stage) filter.stage = stage;
 
     const [applications, total] = await Promise.all([
@@ -27,7 +35,7 @@ export class ApplicationRepository {
   }
 
   async findByUserAndJob(userId: string, jobId: string): Promise<IApplication | null> {
-    return Application.findOne({ userId, jobId });
+    return Application.findOne({ userId: toUserObjectId(userId), jobId });
   }
 
   async findByAtsApplicationId(atsApplicationId: string): Promise<IApplication | null> {
