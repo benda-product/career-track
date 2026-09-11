@@ -17,7 +17,8 @@ import { useSavedJobs } from '@/hooks/use-saved-jobs';
 import { Job } from '@/types';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
-import { openTalentDeskApply } from '@/lib/talent-desk-apply';
+import { ApplyWithResumeDialog } from '@/components/jobs/apply-with-resume-dialog';
+import { useJobApply } from '@/hooks/use-job-apply';
 
 export default function SavedJobsPage() {
   const { unsaveJob, isToggling } = useSavedJobs();
@@ -35,9 +36,18 @@ export default function SavedJobsPage() {
     retry: false,
   });
 
-  const handleApplyClick = (job: Job) => {
-    openTalentDeskApply(job.id, job.applyUrl);
-  };
+  const {
+    applyJob,
+    openApply,
+    closeApply,
+    submitApply,
+    submitting,
+    applyError,
+    resumes,
+    profileResumeId,
+    defaultResumeId,
+    createResume,
+  } = useJobApply();
 
   async function handleRemove(job: Job) {
     await unsaveJob(job.id);
@@ -257,11 +267,10 @@ export default function SavedJobsPage() {
                     <div className="flex flex-wrap gap-2 items-center">
                       <Button
                         size="sm"
-                        onClick={() => handleApplyClick(job)}
+                        onClick={() => openApply(job)}
                         className="h-8 text-[10px] font-black bg-primary text-primary-foreground hover:bg-primary/90 flex items-center gap-1 cursor-pointer"
                       >
-                        <ExternalLink className="h-3 w-3" />
-                        Apply on Talent Desk
+                        Apply
                       </Button>
                       
                       <ButtonLink href={`/jobs/${job.id}`} size="sm" variant="outline" className="h-8 text-[10px] font-bold border-border/80">
@@ -290,6 +299,27 @@ export default function SavedJobsPage() {
           </AnimatePresence>
         </div>
       )}
+
+      {applyError ? (
+        <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
+          {applyError}
+        </div>
+      ) : null}
+
+      <ApplyWithResumeDialog
+        open={Boolean(applyJob)}
+        onOpenChange={(open) => {
+          if (!open) closeApply();
+        }}
+        jobTitle={applyJob?.title || 'Role'}
+        company={applyJob?.company}
+        resumes={resumes}
+        defaultResumeId={defaultResumeId}
+        profileResumeId={profileResumeId}
+        submitting={submitting}
+        onSubmit={(resumeId) => void submitApply(resumeId)}
+        onCreateResume={createResume}
+      />
 
       <p className="text-[10px] text-muted-foreground font-semibold">
         Need more roles? <Link href="/jobs" className="text-primary underline-offset-4 hover:underline">Browse all vacancies</Link>

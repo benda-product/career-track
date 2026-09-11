@@ -44,6 +44,8 @@ interface BendaProvisionDto {
   lastName: string;
   phone?: string;
   photoUrl?: string | null;
+  /** Guest apply flow: create application row but require Benda password before SSO login. */
+  pendingPasswordSetup?: boolean;
 }
 
 /** Career Track requires 8+ char passwords locally; Benda/product creds may be shorter. */
@@ -66,9 +68,90 @@ export class AuthService {
     };
   }
 
+  async getApplicantAccountStatus(email: string) {
+    const normalizedEmail = email.toLowerCase().trim();
+    const user = await userRepository.findByEmail(normalizedEmail);
+    if (!user) {
+      return { status: 'none' as const };
+    }
+    if (user.passwordSetupRequired && !user.bendaLinked) {
+      return {
+        status: 'needs_password' as const,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+      };
+    }
+    return {
+      status: 'active' as const,
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+    };
+  }
+
+  async completeApplicantAccount(dto: {
+    email: string;
+    password: string;
+    firstName?: string;
+    lastName?: string;
+  }) {
+    const normalizedEmail = dto.email.toLowerCase().trim();
+    const user = await userRepository.findByEmail(normalizedEmail);
+    if (!user) {
+      throw new ApiError(
+        404,
+        'No applicant profile found for this email. Submit a job application first.'
+      );
+    }
+    if (!user.passwordSetupRequired || user.bendaLinked) {
+      throw new ApiError(409, 'Account already active. Please sign in instead.');
+    }
+
+    user.password = dto.password;
+    user.passwordSetupRequired = false;
+    user.bendaLinked = true;
+    user.authProvider = 'local';
+    user.isEmailVerified = true;
+    user.firstName = dto.firstName?.trim() || user.firstName;
+    user.lastName = dto.lastName?.trim() || user.lastName;
+    user.lastLogin = new Date();
+    await user.save();
+
+    const tokens = this.buildTokens(user);
+    await userRepository.addRefreshToken(user._id.toString(), tokens.refreshToken);
+
+    void ensureLocalUserInCentralAuth(CENTRAL_AUTH_PRODUCTS.CAREER_TRACK, user, {
+      password: dto.password,
+      roles: ['JOB_SEEKER'],
+      products: [CENTRAL_AUTH_PRODUCTS.CAREER_TRACK],
+      sourceProduct: CENTRAL_AUTH_PRODUCTS.CAREER_TRACK,
+    });
+
+    return {
+      user: {
+        id: user._id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        role: user.role,
+        isEmailVerified: user.isEmailVerified,
+      },
+      ...tokens,
+    };
+  }
+
   async register(dto: RegisterDto) {
     const existing = await userRepository.findByEmail(dto.email);
-    if (existing) throw new ApiError(409, 'Email already registered');
+    if (existing) {
+      if (existing.passwordSetupRequired && !existing.bendaLinked) {
+        throw new ApiError(
+          409,
+          'Finish setting your password to activate the account created from your job application.'
+        );
+      }
+      throw new ApiError(409, 'Email already registered');
+    }
 
     const verificationToken = generateEmailVerificationToken();
     const user = await userRepository.create({
@@ -107,6 +190,13 @@ export class AuthService {
   async login(dto: LoginDto) {
     const normalizedEmail = dto.email.toLowerCase().trim();
     let user = await userRepository.findByEmail(normalizedEmail);
+
+    if (user?.passwordSetupRequired && !user.bendaLinked) {
+      throw new ApiError(
+        403,
+        'Create your Career Track password first to finish account setup from your job application.'
+      );
+    }
 
     if (user?.isActive) {
       const isMatch = await user.comparePassword(dto.password);
@@ -302,7 +392,8 @@ export class AuthService {
         await userRepository.update(user._id.toString(), {
           googleId,
           isEmailVerified: true,
-          bendaLinked: user.bendaLinked || hub.hasBendaAccount,
+          bendaLinked: true,
+          passwordSetupRequired: false,
           ...(hub.photoUrl && !user.avatar ? { avatar: hub.photoUrl } : {}),
         });
       } else {
@@ -349,8 +440,10 @@ export class AuthService {
   async provisionFromBendaInfotech(dto: BendaProvisionDto) {
     const email = dto.email.toLowerCase().trim();
     let user = await userRepository.findByEmail(email);
+    let created = false;
 
     if (!user) {
+      created = true;
       user = await userRepository.create({
         email,
         password: crypto.randomBytes(32).toString('hex'),
@@ -360,22 +453,28 @@ export class AuthService {
         avatar: dto.photoUrl || undefined,
         isEmailVerified: true,
         authProvider: 'benda_infotech',
+        bendaLinked: !dto.pendingPasswordSetup,
+        passwordSetupRequired: Boolean(dto.pendingPasswordSetup),
       });
       await profileRepository.create(user._id.toString());
       void syncCandidateToTalentPool(user._id.toString());
     } else {
       await userRepository.update(user._id.toString(), {
         lastLogin: new Date(),
-        bendaLinked: true,
+        bendaLinked: user.bendaLinked || !dto.pendingPasswordSetup,
         isEmailVerified: user.isEmailVerified || true,
         ...(dto.photoUrl && !user.avatar ? { avatar: dto.photoUrl } : {}),
       });
     }
 
     const tokens = this.buildTokens(user);
-    await userRepository.addRefreshToken(user._id.toString(), tokens.refreshToken);
+    if (!dto.pendingPasswordSetup || !created) {
+      await userRepository.addRefreshToken(user._id.toString(), tokens.refreshToken);
+    }
 
     return {
+      created,
+      passwordSetupRequired: Boolean(user.passwordSetupRequired),
       user: {
         id: user._id.toString(),
         email: user.email,
@@ -442,11 +541,20 @@ export class AuthService {
         role: 'candidate',
         isEmailVerified: true,
         authProvider: 'benda_infotech',
+        passwordSetupRequired: true,
+        bendaLinked: false,
       });
       await profileRepository.create(user._id.toString());
       void syncCandidateToTalentPool(user._id.toString());
     } else {
       await userRepository.update(user._id.toString(), { lastLogin: new Date() });
+    }
+
+    if (user.passwordSetupRequired && !user.bendaLinked) {
+      throw new ApiError(
+        403,
+        'Finish creating your Benda Infotech password before opening Career Track.'
+      );
     }
 
     void backfillUserApplicationsFromAts(

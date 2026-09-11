@@ -14,6 +14,7 @@ export interface JobSearchFilters {
   remote?: boolean;
   hybrid?: boolean;
   industry?: string;
+  channel?: string;
   page?: number;
   limit?: number;
 }
@@ -225,6 +226,7 @@ class AtsService {
     recruiterId?: string;
     companyId?: string;
     candidateData?: Record<string, unknown>;
+    coverLetter?: string;
   }): Promise<{ applicationId: string }> {
     const maxAttempts = 3;
     let lastError: unknown;

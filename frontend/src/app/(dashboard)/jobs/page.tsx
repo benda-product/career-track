@@ -19,7 +19,10 @@ import { normalizeJobsPayload } from '@/utils/jobs';
 import { Job } from '@/types';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
-import { openTalentDeskApply } from '@/lib/talent-desk-apply';
+import { ApplyWithResumeDialog } from '@/components/jobs/apply-with-resume-dialog';
+import { JobDetailSections } from '@/components/jobs/job-detail-sections';
+import { buildJobDescriptionPreview, hasJobDescriptionContent } from '@/lib/job-content';
+import { useJobApply } from '@/hooks/use-job-apply';
 
 function getApiErrorMessage(error: unknown, fallback: string) {
   const axiosErr = error as { response?: { data?: { message?: string } }; message?: string };
@@ -53,9 +56,18 @@ function JobsContent() {
 
   const jobs: Job[] = normalizeJobsPayload(data?.data);
 
-  const handleApplyClick = (job: Job) => {
-    openTalentDeskApply(job.id, job.applyUrl);
-  };
+  const {
+    applyJob,
+    openApply,
+    closeApply,
+    submitApply,
+    submitting,
+    applyError,
+    resumes,
+    profileResumeId,
+    defaultResumeId,
+    createResume,
+  } = useJobApply();
 
   const handleToggleExpand = (id: string) => {
     setExpandedJobId((prev) => (prev === id ? null : id));
@@ -288,11 +300,10 @@ function JobsContent() {
                       <SaveJobButton job={{ ...job, id: job.id || String(i) }} variant="outline" />
                       <Button
                         size="sm"
-                        onClick={() => handleApplyClick(job)}
+                        onClick={() => openApply(job)}
                         className="h-8 text-[10px] font-black bg-primary text-primary-foreground hover:bg-primary/90 flex items-center gap-1 cursor-pointer"
                       >
-                        <ExternalLink className="h-3 w-3" />
-                        Apply on Talent Desk
+                        Apply
                       </Button>
                     </div>
                   </div>
@@ -318,11 +329,17 @@ function JobsContent() {
                         transition={{ duration: 0.2 }}
                         className="overflow-hidden"
                       >
-                        <div className="pt-3 border-t border-border/20 mt-2 space-y-1.5">
-                          <h4 className="text-xs font-bold text-foreground">Vacancy Description</h4>
-                          <p className="text-[11px] text-muted-foreground leading-relaxed whitespace-pre-wrap bg-muted/20 border border-border/40 p-3 rounded-xl">
-                            {job.description || 'No job description provided from the ATS platform integration.'}
-                          </p>
+                        <div className="pt-3 border-t border-border/20 mt-2 space-y-3">
+                          <h4 className="text-xs font-bold text-foreground">Full Job Details</h4>
+                          {hasJobDescriptionContent(job) || job.benefits?.length ? (
+                            <div className="rounded-xl border border-border/40 bg-muted/20 p-3">
+                              <JobDetailSections job={job} showSkills={false} />
+                            </div>
+                          ) : (
+                            <p className="text-[11px] text-muted-foreground leading-relaxed whitespace-pre-wrap bg-muted/20 border border-border/40 p-3 rounded-xl">
+                              {buildJobDescriptionPreview(job) || 'No job description provided from the ATS platform integration.'}
+                            </p>
+                          )}
                         </div>
                       </motion.div>
                     )}
@@ -352,6 +369,26 @@ function JobsContent() {
         </div>
       )}
 
+      {applyError ? (
+        <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
+          {applyError}
+        </div>
+      ) : null}
+
+      <ApplyWithResumeDialog
+        open={Boolean(applyJob)}
+        onOpenChange={(open) => {
+          if (!open) closeApply();
+        }}
+        jobTitle={applyJob?.title || 'Role'}
+        company={applyJob?.company}
+        resumes={resumes}
+        defaultResumeId={defaultResumeId}
+        profileResumeId={profileResumeId}
+        submitting={submitting}
+        onSubmit={(resumeId) => void submitApply(resumeId)}
+        onCreateResume={createResume}
+      />
     </div>
   );
 }

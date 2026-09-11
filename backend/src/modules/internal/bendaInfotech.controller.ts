@@ -104,7 +104,7 @@ export class BendaInfotechController {
         status: user.subscriptionCancelAtPeriodEnd ? 'cancelling' : 'active',
         billingCycle: 'monthly',
         currentPeriodEnd: user.subscriptionCurrentPeriodEnd,
-        updatedAt: user.updatedAt,
+        updatedAt: (user as { updatedAt?: Date }).updatedAt,
       })),
     });
   });
@@ -206,6 +206,9 @@ export class BendaInfotechController {
     user.password = nextPassword;
     user.passwordResetToken = undefined;
     user.passwordResetExpires = undefined;
+    user.passwordSetupRequired = false;
+    user.bendaLinked = true;
+    user.authProvider = 'benda_infotech';
     await user.save();
 
     sendSuccess(res, {

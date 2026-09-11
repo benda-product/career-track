@@ -20,6 +20,8 @@ export interface IUser extends Document {
   isActive: boolean;
   authProvider?: 'local' | 'benda_infotech';
   bendaLinked?: boolean;
+  /** True when account was created from a public job apply and user must finish Benda signup. */
+  passwordSetupRequired?: boolean;
   subscriptionPlan?: 'free' | 'pro';
   paypalSubscriptionId?: string;
   subscriptionCurrentPeriodEnd?: Date;
@@ -48,6 +50,7 @@ const userSchema = new Schema<IUser>(
     isActive: { type: Boolean, default: true },
     authProvider: { type: String, enum: ['local', 'benda_infotech'], default: 'local' },
     bendaLinked: { type: Boolean, default: false },
+    passwordSetupRequired: { type: Boolean, default: false },
     subscriptionPlan: { type: String, enum: ['free', 'pro'], default: 'free' },
     paypalSubscriptionId: String,
     subscriptionCurrentPeriodEnd: Date,

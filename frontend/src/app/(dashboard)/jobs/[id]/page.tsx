@@ -3,9 +3,11 @@
 import { Suspense, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
-import { MapPin, Building2, DollarSign, ExternalLink } from 'lucide-react';
+import { Briefcase, Building2, DollarSign, MapPin } from 'lucide-react';
 import { SaveJobButton } from '@/components/jobs/save-job-button';
 import { JobRecommendedAssessment } from '@/components/jobs/job-recommended-assessment';
+import { ApplyWithResumeDialog } from '@/components/jobs/apply-with-resume-dialog';
+import { JobDetailSections } from '@/components/jobs/job-detail-sections';
 import { PageHeader } from '@/components/ui/page-header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -13,13 +15,27 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { jobsService } from '@/services/jobs.service';
 import { useAuthStore } from '@/store/auth.store';
-import { dedupeSkills, sanitizeJobDescriptionHtml } from '@/lib/job-content';
-import { openTalentDeskApply } from '@/lib/talent-desk-apply';
+import { dedupeSkills, formatJobType, formatRemoteMode } from '@/lib/job-content';
+import { useJobApply } from '@/hooks/use-job-apply';
+import type { Job } from '@/types';
 
 function JobDetailContent() {
   const { id } = useParams<{ id: string }>();
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const [assessmentDetailsOpen, setAssessmentDetailsOpen] = useState(false);
+
+  const {
+    applyJob,
+    openApply,
+    closeApply,
+    submitApply,
+    submitting,
+    applyError,
+    resumes,
+    profileResumeId,
+    defaultResumeId,
+    createResume,
+  } = useJobApply();
 
   const { data: job, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['job', id],
@@ -44,33 +60,10 @@ function JobDetailContent() {
     );
   }
 
-  const jobData = job as {
-    id?: string;
-    title?: string;
-    company?: string;
-    location?: string;
-    salary?: string;
-    employmentType?: string;
-    remote?: boolean;
-    description?: string;
-    skills?: string[];
-    applyUrl?: string;
-    recommendedAssessment?: {
-      id: string;
-      name: string;
-      title: string;
-      recommendedFor: string;
-      bendaLanguage: string;
-      targetPath: string;
-      prerequisite?: string;
-      levels: string[];
-      optional: true;
-    } | null;
-  };
-
-  const recommendedAssessment = jobData?.recommendedAssessment || null;
-  const uniqueSkills = dedupeSkills(jobData?.skills);
-  const descriptionHtml = sanitizeJobDescriptionHtml(jobData?.description);
+  const jobData = (job || {}) as Job;
+  const recommendedAssessment = jobData.recommendedAssessment || null;
+  const uniqueSkills = dedupeSkills(jobData.skills);
+  const remoteLabel = formatRemoteMode(undefined, jobData.remote, jobData.hybrid);
 
   const jobForSave = {
     id: jobData.id || id,
@@ -83,15 +76,17 @@ function JobDetailContent() {
     skills: jobData.skills,
   };
 
+  const jobForApply = {
+    ...jobForSave,
+    id: jobData.id || id,
+    applyUrl: jobData.applyUrl,
+  };
+
   return (
     <div className="mx-auto max-w-3xl space-y-6">
-      <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">
-        Applications for Talent Desk jobs are submitted on Talent Desk. Use the button below to continue in a new tab.
-      </div>
-
       <PageHeader
-        title={jobData?.title || 'Job Details'}
-        description={jobData?.company}
+        title={jobData.title || 'Job Details'}
+        description={jobData.company}
         action={
           <div className="flex flex-wrap justify-end gap-2">
             {recommendedAssessment ? (
@@ -100,12 +95,32 @@ function JobDetailContent() {
               </Button>
             ) : null}
             <SaveJobButton job={jobForSave} variant="outline" showLabel />
-            <Button onClick={() => openTalentDeskApply(jobData.id || id, jobData.applyUrl)}>
-              <ExternalLink className="mr-2 h-4 w-4" />
-              Apply on Talent Desk
+            <Button onClick={() => openApply(jobForApply)}>
+              Apply
             </Button>
           </div>
         }
+      />
+
+      {applyError ? (
+        <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
+          {applyError}
+        </div>
+      ) : null}
+
+      <ApplyWithResumeDialog
+        open={Boolean(applyJob)}
+        onOpenChange={(open) => {
+          if (!open) closeApply();
+        }}
+        jobTitle={applyJob?.title || jobData.title || 'Role'}
+        company={applyJob?.company || jobData.company}
+        resumes={resumes}
+        defaultResumeId={defaultResumeId}
+        profileResumeId={profileResumeId}
+        submitting={submitting}
+        onSubmit={(resumeId) => void submitApply(resumeId)}
+        onCreateResume={createResume}
       />
 
       {recommendedAssessment ? (
@@ -117,28 +132,55 @@ function JobDetailContent() {
       ) : null}
 
       <Card>
-        <CardContent className="space-y-4 p-6">
+        <CardContent className="space-y-5 p-6">
           <div className="flex flex-wrap gap-3 text-sm text-muted-foreground">
-            {jobData?.location && (
+            {jobData.location ? (
               <span className="flex items-center gap-1">
                 <MapPin className="h-4 w-4" />
                 {jobData.location}
               </span>
-            )}
-            {jobData?.employmentType && (
+            ) : null}
+            {remoteLabel ? <Badge variant="outline">{remoteLabel}</Badge> : null}
+            {jobData.employmentType ? (
               <span className="flex items-center gap-1">
                 <Building2 className="h-4 w-4" />
-                {jobData.employmentType}
+                {formatJobType(jobData.employmentType)}
               </span>
-            )}
-            {jobData?.salary && (
+            ) : null}
+            {jobData.department ? (
+              <span className="flex items-center gap-1">
+                <Briefcase className="h-4 w-4" />
+                {jobData.department}
+              </span>
+            ) : null}
+            {jobData.salary ? (
               <span className="flex items-center gap-1">
                 <DollarSign className="h-4 w-4" />
                 {jobData.salary}
               </span>
-            )}
-            {jobData?.remote && <Badge>Remote</Badge>}
+            ) : null}
           </div>
+
+          {(jobData.minExperience != null || jobData.maxExperience != null || jobData.openings || jobData.jobReferenceId) ? (
+            <div className="flex flex-wrap gap-2">
+              {jobData.minExperience != null || jobData.maxExperience != null ? (
+                <Badge variant="secondary">
+                  Experience:{' '}
+                  {jobData.minExperience != null && jobData.maxExperience != null
+                    ? `${jobData.minExperience}–${jobData.maxExperience} yrs`
+                    : jobData.minExperience != null
+                      ? `${jobData.minExperience}+ yrs`
+                      : `Up to ${jobData.maxExperience} yrs`}
+                </Badge>
+              ) : null}
+              {jobData.openings ? (
+                <Badge variant="secondary">{jobData.openings} opening{jobData.openings === 1 ? '' : 's'}</Badge>
+              ) : null}
+              {jobData.jobReferenceId ? (
+                <Badge variant="outline">Ref: {jobData.jobReferenceId}</Badge>
+              ) : null}
+            </div>
+          ) : null}
 
           {uniqueSkills.length ? (
             <div className="flex flex-wrap gap-2">
@@ -150,18 +192,7 @@ function JobDetailContent() {
             </div>
           ) : null}
 
-          <div className="prose prose-sm max-w-none">
-            {descriptionHtml ? (
-              <div
-                className="text-muted-foreground"
-                dangerouslySetInnerHTML={{ __html: descriptionHtml }}
-              />
-            ) : (
-              <p className="text-muted-foreground">
-                Job description will be loaded from the ATS integration.
-              </p>
-            )}
-          </div>
+          <JobDetailSections job={jobData} showSkills={false} />
         </CardContent>
       </Card>
     </div>

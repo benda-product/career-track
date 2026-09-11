@@ -51,4 +51,30 @@ export const authService = {
   verifyEmail: async (token: string) => {
     await apiClient.get(`/auth/verify-email?token=${token}`);
   },
+
+  getApplicantAccountStatus: async (email: string) => {
+    const res = await apiClient.get<
+      ApiResponse<{
+        status: 'none' | 'needs_password' | 'active';
+        email?: string;
+        firstName?: string;
+        lastName?: string;
+      }>
+    >('/auth/applicant-account-status', { params: { email } });
+    return res.data.data!;
+  },
+
+  completeApplicantAccount: async (data: {
+    email: string;
+    password: string;
+    firstName?: string;
+    lastName?: string;
+    turnstileToken?: string;
+  }) => {
+    const res = await apiClient.post<ApiResponse<{ user: User; accessToken: string; refreshToken: string }>>(
+      '/auth/complete-applicant-account',
+      data
+    );
+    return res.data.data!;
+  },
 };

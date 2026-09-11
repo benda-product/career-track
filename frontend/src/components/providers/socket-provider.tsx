@@ -4,7 +4,14 @@ import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { io, type Socket } from 'socket.io-client';
 import { SOCKET_URL } from '@/constants';
-import { useAuthStore } from '@/store/auth.store';
+import { getStoredAccessToken, TOKEN_REFRESHED_EVENT, useAuthStore } from '@/store/auth.store';
+
+function resolveSocketUrl() {
+  if (typeof window !== 'undefined') {
+    return window.location.origin;
+  }
+  return SOCKET_URL;
+}
 
 type SocketStatus = 'disconnected' | 'connecting' | 'connected';
 
@@ -34,8 +41,9 @@ function connectSocket(
   disconnectSocket();
   onStatus('connecting');
 
-  socket = io(SOCKET_URL, {
+  socket = io(resolveSocketUrl(), {
     auth: { token: accessToken },
+    path: '/socket.io',
     transports: ['websocket', 'polling'],
     reconnection: true,
     reconnectionAttempts: Infinity,
@@ -62,7 +70,9 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
   const [status, setStatus] = useState<SocketStatus>('disconnected');
 
   useEffect(() => {
-    if (!hasHydrated || !isAuthenticated || !accessToken) {
+    const token = getStoredAccessToken() || accessToken;
+
+    if (!hasHydrated || !isAuthenticated || !token) {
       disconnectSocket();
       setStatus('disconnected');
       return;
@@ -79,7 +89,17 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
       },
     };
 
-    connectSocket(accessToken, setStatus, handlers);
+    const connectWithLatestToken = () => {
+      const latestToken = getStoredAccessToken() || accessToken;
+      if (!latestToken) {
+        disconnectSocket();
+        setStatus('disconnected');
+        return;
+      }
+      connectSocket(latestToken, setStatus, handlers);
+    };
+
+    connectWithLatestToken();
 
     // Chrome BFCache freezes pages and kills WebSockets. Reconnect when restored.
     const reconnectIfNeeded = () => {
@@ -87,7 +107,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
         setStatus('connected');
         return;
       }
-      connectSocket(accessToken, setStatus, handlers);
+      connectWithLatestToken();
     };
 
     const onPageShow = (event: PageTransitionEvent) => {
@@ -98,12 +118,16 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
       if (document.visibilityState === 'visible') reconnectIfNeeded();
     };
 
+    const onTokenRefreshed = () => reconnectIfNeeded();
+
     window.addEventListener('pageshow', onPageShow);
     document.addEventListener('visibilitychange', onVisibility);
+    window.addEventListener(TOKEN_REFRESHED_EVENT, onTokenRefreshed);
 
     return () => {
       window.removeEventListener('pageshow', onPageShow);
       document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener(TOKEN_REFRESHED_EVENT, onTokenRefreshed);
       disconnectSocket();
       setStatus('disconnected');
     };

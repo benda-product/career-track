@@ -15,9 +15,24 @@ const ALLOWED_TAGS = new Set([
   'b',
   'i',
   'u',
+  's',
+  'strike',
   'a',
   'span',
   'div',
+  'blockquote',
+  'table',
+  'thead',
+  'tbody',
+  'tr',
+  'th',
+  'td',
+  'colgroup',
+  'col',
+  'hr',
+  'sub',
+  'sup',
+  'mark',
 ]);
 
 function decodeBasicEntities(value: string) {
@@ -71,7 +86,7 @@ export function sanitizeJobDescriptionHtml(input?: string | null): string {
     const isClosing = full.startsWith('</');
 
     if (!ALLOWED_TAGS.has(tag)) {
-      return tag === 'br' ? '<br />' : '';
+      return '';
     }
 
     if (isClosing) return `</${tag}>`;
@@ -81,6 +96,66 @@ export function sanitizeJobDescriptionHtml(input?: string | null): string {
   });
 
   return html.trim();
+}
+
+export function stripHtml(input?: string | null): string {
+  return String(input || '')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+export function looksLikeHtml(input?: string | null): boolean {
+  return Boolean(input && /<\/?[a-z][\s\S]*>/i.test(input));
+}
+
+export type JobDescriptionFields = {
+  description?: string | null;
+  responsibilities?: string | null;
+  qualificationsText?: string | null;
+};
+
+export function hasJobDescriptionContent(job: JobDescriptionFields): boolean {
+  return Boolean(
+    stripHtml(job.description) ||
+      stripHtml(job.responsibilities) ||
+      stripHtml(job.qualificationsText)
+  );
+}
+
+export function buildJobDescriptionPreview(job: JobDescriptionFields, maxLength = 320): string {
+  const parts = [job.description, job.responsibilities, job.qualificationsText]
+    .map((value) => stripHtml(value))
+    .filter(Boolean);
+
+  const combined = parts.join(' ').replace(/\s+/g, ' ').trim();
+  if (!combined) return '';
+  if (combined.length <= maxLength) return combined;
+  return `${combined.slice(0, maxLength).trimEnd()}…`;
+}
+
+export function formatJobType(value?: string | null): string {
+  if (!value) return '';
+  return value.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+export function formatRemoteMode(mode?: string | null, remote?: boolean, hybrid?: boolean): string {
+  if (remote) return 'Remote';
+  if (hybrid) return 'Hybrid';
+  if (!mode) return '';
+  const normalized = mode.toLowerCase();
+  if (normalized === 'remote') return 'Remote';
+  if (normalized === 'hybrid') return 'Hybrid';
+  if (normalized === 'onsite' || normalized === 'on_site') return 'On-site';
+  return formatJobType(mode);
 }
 
 export function dedupeSkills(skills?: string[] | null): string[] {

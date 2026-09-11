@@ -9,9 +9,17 @@ interface AuthState {
   isAuthenticated: boolean;
   hasHydrated: boolean;
   setAuth: (user: User, accessToken: string, refreshToken: string) => void;
+  updateTokens: (accessToken: string, refreshToken: string) => void;
   clearAuth: () => void;
   updateUser: (user: Partial<User>) => void;
   setHasHydrated: (value: boolean) => void;
+}
+
+export const TOKEN_REFRESHED_EVENT = 'careertrack-token-refreshed';
+
+export function getStoredAccessToken(): string | null {
+  if (typeof window === 'undefined') return null;
+  return localStorage.getItem('accessToken');
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -28,6 +36,16 @@ export const useAuthStore = create<AuthState>()(
           localStorage.setItem('refreshToken', refreshToken);
         }
         set({ user, accessToken, refreshToken, isAuthenticated: true, hasHydrated: true });
+      },
+      updateTokens: (accessToken, refreshToken) => {
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('accessToken', accessToken);
+          localStorage.setItem('refreshToken', refreshToken);
+          window.dispatchEvent(
+            new CustomEvent(TOKEN_REFRESHED_EVENT, { detail: { accessToken } })
+          );
+        }
+        set({ accessToken, refreshToken });
       },
       clearAuth: () => {
         if (typeof window !== 'undefined') {

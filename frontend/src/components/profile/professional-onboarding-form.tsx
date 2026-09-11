@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Loader2, Plus, Trash2, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -54,6 +54,7 @@ type DomainExperience = { domain: string; yearsOfExperience: number };
 
 export function ProfessionalOnboardingForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -191,7 +192,8 @@ export function ProfessionalOnboardingForm() {
         await profileService.uploadResume(resumeFile);
       }
 
-      router.replace('/dashboard');
+      const next = searchParams.get('next');
+      router.replace(next && next.startsWith('/') ? next : '/dashboard');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save profile');
     } finally {

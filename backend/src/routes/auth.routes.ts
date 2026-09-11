@@ -9,6 +9,7 @@ import {
   forgotPasswordSchema,
   resetPasswordSchema,
   googleLoginSchema,
+  completeApplicantAccountSchema,
 } from '../validators/auth.validator';
 import { requireTurnstile } from '../middlewares/turnstile.middleware';
 import { authRateLimiter, forgotPasswordRateLimiter } from '../middlewares/rateLimit.middleware';
@@ -36,5 +37,13 @@ router.post(
 );
 router.post('/google', authRateLimiter, validate(googleLoginSchema), authController.googleLogin);
 router.post('/sso-login', authRateLimiter, authController.ssoLogin);
+router.get('/applicant-account-status', authRateLimiter, authController.applicantAccountStatus);
+router.post(
+  '/complete-applicant-account',
+  authRateLimiter,
+  requireTurnstile,
+  validate(completeApplicantAccountSchema),
+  authController.completeApplicantAccount
+);
 
 export default router;

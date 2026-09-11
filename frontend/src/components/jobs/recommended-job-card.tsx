@@ -8,6 +8,8 @@ import { ButtonLink } from '@/components/ui/link-button';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { RecommendedJob } from '@/types';
+import { JobDetailSections } from '@/components/jobs/job-detail-sections';
+import { buildJobDescriptionPreview, hasJobDescriptionContent } from '@/lib/job-content';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -253,10 +255,16 @@ export function RecommendedJobCard({
               className="overflow-hidden"
             >
               <div className="pt-4 border-t border-border/40 space-y-2 mt-1">
-                <h4 className="text-xs font-bold text-foreground">Role Description</h4>
-                <p className="text-[11px] text-muted-foreground leading-relaxed whitespace-pre-wrap bg-muted/30 border border-border/40 p-3 rounded-xl">
-                  {job.description || 'No description listed from this recruitment system.'}
-                </p>
+                <h4 className="text-xs font-bold text-foreground">Full Job Details</h4>
+                {hasJobDescriptionContent(job) || job.benefits?.length ? (
+                  <div className="rounded-xl border border-border/40 bg-muted/30 p-3">
+                    <JobDetailSections job={job} showSkills={false} />
+                  </div>
+                ) : (
+                  <p className="text-[11px] text-muted-foreground leading-relaxed whitespace-pre-wrap bg-muted/30 border border-border/40 p-3 rounded-xl">
+                    {buildJobDescriptionPreview(job) || 'No description listed from this recruitment system.'}
+                  </p>
+                )}
               </div>
             </motion.div>
           )}
@@ -291,7 +299,7 @@ export function RecommendedJobCard({
                 className="h-8 text-[10px] font-black bg-primary text-primary-foreground hover:bg-primary/90 flex items-center gap-1 cursor-pointer"
               >
                 {isApplying && <Loader2 className="h-3 w-3 animate-spin" />}
-                Quick Apply on Talent Desk
+                Quick Apply
               </Button>
             )}
           </div>

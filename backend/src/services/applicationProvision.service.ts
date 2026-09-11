@@ -3,7 +3,6 @@ import { authService } from '../modules/auth/auth.service';
 import { userRepository } from '../repositories/user.repository';
 import { applicationRepository } from '../repositories/application.repository';
 import { splitDisplayName } from './ecosystemAuth.service';
-import { createCareerTrackSsoToken } from '../utils/careerTrackSso';
 import { env } from '../config/env';
 import { logger } from '../utils/logger';
 
@@ -23,6 +22,30 @@ export type ProvisionApplicationFromAtsInput = {
   /** When set (e.g. backfill for signed-in user), applications attach to this Career Track user. */
   targetUserId?: string;
 };
+
+const DEFAULT_TRACK_REDIRECT = '/applications/status';
+
+function buildTrackApplicationUrl(email: string, applicationId: string) {
+  const params = new URLSearchParams({
+    email,
+    applicationId,
+  });
+  return `${env.clientUrl}/auth/track-application?${params.toString()}`;
+}
+
+function buildCareerTrackAuthUrl(
+  path: 'login' | 'register',
+  email: string,
+  extra?: Record<string, string>
+) {
+  const params = new URLSearchParams({
+    email,
+    redirect: DEFAULT_TRACK_REDIRECT,
+    from: 'apply',
+    ...extra,
+  });
+  return `${env.clientUrl}/auth/${path}?${params.toString()}`;
+}
 
 export async function provisionApplicationFromAtsApply(input: ProvisionApplicationFromAtsInput) {
   const email = String(input.email || '').toLowerCase().trim();
@@ -45,11 +68,13 @@ export async function provisionApplicationFromAtsApply(input: ProvisionApplicati
     firstName: nameParts.firstName,
     lastName: nameParts.lastName,
     phone: input.phone,
+    pendingPasswordSetup: !existingUser,
   });
 
   const provisionUserId = provision.user.id;
   const userId = input.targetUserId || provisionUserId;
-  const accountCreated = !existingUser;
+  const accountCreated = Boolean(provision.created);
+  const passwordSetupRequired = Boolean(provision.passwordSetupRequired);
 
   let application =
     (await applicationRepository.findByAtsApplicationId(atsApplicationId)) ||
@@ -99,24 +124,20 @@ export async function provisionApplicationFromAtsApply(input: ProvisionApplicati
     return { ok: false, reason: 'application_create_failed' as const };
   }
 
-  const targetPath = '/applications/status';
-  const token = createCareerTrackSsoToken({
+  const trackApplicationUrl = buildTrackApplicationUrl(
     email,
-    name: input.fullName,
-    userId,
-    targetPath,
-    sourceApp: input.source || 'talent_desk_apply',
-  });
-
-  const careerTrackUrl = `${env.clientUrl}/auth/sso-login?token=${encodeURIComponent(
-    token
-  )}&redirect=${encodeURIComponent(targetPath)}`;
+    application._id.toString()
+  );
+  const loginUrl = buildCareerTrackAuthUrl('login', email);
+  const signupUrl = buildCareerTrackAuthUrl('register', email);
 
   logger.info('Career Track application provisioned from ATS apply', {
     atsApplicationId,
     careerTrackApplicationId: application._id.toString(),
     userId,
     source: input.source,
+    accountCreated,
+    passwordSetupRequired,
   });
 
   return {
@@ -124,8 +145,10 @@ export async function provisionApplicationFromAtsApply(input: ProvisionApplicati
     userId,
     applicationId: application._id.toString(),
     accountCreated,
-    careerTrackUrl,
-    loginUrl: `${env.clientUrl}/auth/login?email=${encodeURIComponent(email)}`,
-    signupUrl: `https://bendainfotech.com/signup?product=career_track&redirect=${encodeURIComponent('/applications/status')}&email=${encodeURIComponent(email)}`,
+    passwordSetupRequired,
+    careerTrackUrl: trackApplicationUrl,
+    trackApplicationUrl,
+    loginUrl,
+    signupUrl,
   };
 }

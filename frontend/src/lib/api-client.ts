@@ -1,5 +1,6 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 import { getApiUrl } from '@/constants';
+import { useAuthStore } from '@/store/auth.store';
 
 const apiClient = axios.create({
   baseURL: getApiUrl(),
@@ -80,8 +81,8 @@ apiClient.interceptors.response.use(
       try {
         const { data } = await axios.post(`${getApiUrl()}/auth/refresh-token`, { refreshToken });
         const newToken = data.data.accessToken;
-        localStorage.setItem('accessToken', newToken);
-        localStorage.setItem('refreshToken', data.data.refreshToken);
+        const newRefreshToken = data.data.refreshToken;
+        useAuthStore.getState().updateTokens(newToken, newRefreshToken);
         processQueue(null, newToken);
         originalRequest.headers.Authorization = `Bearer ${newToken}`;
         return apiClient(originalRequest);

@@ -15,6 +15,7 @@ import { useAuthStore } from '@/store/auth.store';
 import { cn } from '@/lib/utils';
 import { getBendaForgotPasswordUrl } from '@/lib/benda-auth';
 import { TurnstileField, isTurnstileEnabled } from '@/components/TurnstileField';
+import { navigateAfterAuth } from '@/lib/post-auth-navigation';
 
 const loginSchema = z.object({
   email: z.string().email('Enter a valid email'),
@@ -34,6 +35,9 @@ function LoginPageContent() {
   const [loading, setLoading] = useState(false);
   const [turnstileToken, setTurnstileToken] = useState('');
   const [turnstileKey, setTurnstileKey] = useState(0);
+  const emailFromQuery = String(searchParams.get('email') || '').trim();
+  const redirectPath = searchParams.get('redirect') || '/dashboard';
+  const fromApply = searchParams.get('from') === 'apply';
 
   const {
     register,
@@ -41,6 +45,10 @@ function LoginPageContent() {
     formState: { errors },
   } = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
+    defaultValues: {
+      email: emailFromQuery,
+      password: '',
+    },
   });
 
   const onSubmit = async (data: LoginForm) => {
@@ -53,7 +61,7 @@ function LoginPageContent() {
     try {
       const result = await authService.login({ ...data, turnstileToken });
       setAuth(result.user, result.accessToken, result.refreshToken);
-      router.push('/dashboard');
+      await navigateAfterAuth(router, redirectPath);
     } catch (err) {
       const apiMessage = isAxiosError(err)
         ? (err.response?.data as { message?: string } | undefined)?.message
@@ -69,8 +77,12 @@ function LoginPageContent() {
   return (
     <AuthShell
       mode="login"
-      title="Sign in"
-      subtitle="Job seekers only — use Google or email. Recruiters should use Talent Desk."
+      title={fromApply ? 'Sign in to track application' : 'Sign in'}
+      subtitle={
+        fromApply
+          ? 'Use the same email you applied with. You will complete your profile next, then open your application tracker.'
+          : 'Job seekers only — use Google or email. Recruiters should use Talent Desk.'
+      }
     >
       <div className="space-y-5">
         <GoogleSignInButton
@@ -83,7 +95,7 @@ function LoginPageContent() {
             try {
               const result = await authService.googleLogin(idToken);
               setAuth(result.user, result.accessToken, result.refreshToken);
-              router.push('/dashboard');
+              await navigateAfterAuth(router, redirectPath);
             } catch (err) {
               const apiMessage = isAxiosError(err)
                 ? (err.response?.data as { message?: string } | undefined)?.message

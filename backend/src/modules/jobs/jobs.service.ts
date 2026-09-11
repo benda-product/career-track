@@ -1,12 +1,20 @@
+import { Types } from 'mongoose';
 import { atsService, JobSearchFilters } from '../../services/ats.service';
 import { SavedJob } from './savedJob.model';
 import { RecentlyViewed } from './recentlyViewed.model';
 import { applicationRepository } from '../../repositories/application.repository';
+import { userRepository } from '../../repositories/user.repository';
+import { profileRepository } from '../../repositories/profile.repository';
 import { IApplication } from '../applications/application.model';
 import { logger } from '../../utils/logger';
 import { extractJob, extractJobsList, NormalizedJob } from '../../utils/atsJob.mapper';
 import { recommendationService } from './recommendation.service';
 import { skillTestService } from '../../services/skillTest.service';
+import { resumeBuilderService } from '../../services/resumeBuilder.service';
+import {
+  buildApplicationCandidateData,
+  syncCandidateToTalentPool,
+} from '../../services/talentPool.service';
 import {
   FALLBACK_SKILL_CATALOG,
   recommendAssessmentForJob,
@@ -64,7 +72,9 @@ function normalizeEmploymentType(value?: string): string | undefined {
 }
 
 function toAtsQuery(filters: JobSearchFilters): Record<string, unknown> {
-  const params: Record<string, unknown> = {};
+  const params: Record<string, unknown> = {
+    channel: 'careerTrack',
+  };
 
   if (filters.query?.trim()) {
     params.search = filters.query.trim();
@@ -160,16 +170,119 @@ export class JobsService {
     }
   }
 
+  private async resolveResumeForApply(
+    email: string,
+    resumeId: string,
+    profile: Awaited<ReturnType<typeof profileRepository.getOrCreate>>
+  ): Promise<{ resumeId: string; resumeTitle: string }> {
+    const selectedId = String(resumeId || profile.resumeId || '').trim();
+    if (!selectedId) {
+      throw new ApiError(
+        400,
+        'Select a resume to apply. Create one in Resume Builder or upload a resume in your profile.'
+      );
+    }
+
+    try {
+      const resume = (await resumeBuilderService.getResume(email, selectedId)) as {
+        title?: string;
+        id?: string;
+        _id?: string;
+      };
+      return {
+        resumeId: String(resume.id || resume._id || selectedId),
+        resumeTitle: resume.title?.trim() || 'Resume',
+      };
+    } catch (err) {
+      if (err instanceof ApiError) throw err;
+      throw new ApiError(404, 'Selected resume was not found. Choose another resume or create a new one.');
+    }
+  }
+
   async applyToJob(
-    _userId: string,
+    userId: string,
     jobId: string,
-    _resumeId: string,
-    _coverLetter?: string
+    resumeId: string,
+    coverLetter?: string
   ): Promise<{ application: IApplication; created: boolean }> {
-    throw new ApiError(
-      403,
-      `Applications for Talent Desk jobs must be submitted on Talent Desk. Continue at ${buildTalentDeskApplyUrl(jobId)}`
+    const user = await userRepository.findById(userId);
+    if (!user) throw new ApiError(404, 'User not found');
+
+    const profile = await profileRepository.getOrCreate(userId);
+    const existing = await applicationRepository.findByUserAndJob(userId, jobId);
+    if (existing && !existing.isSaved) {
+      return { application: existing, created: false };
+    }
+
+    const job = extractJob(await atsService.getJob(jobId));
+    const atsJobMeta = await atsService.getJobMeta(jobId);
+    if (!atsJobMeta?.recruiterId) {
+      throw new ApiError(
+        422,
+        'This job cannot accept applications right now. Confirm the job is published in Talent Desk.'
+      );
+    }
+
+    await syncCandidateToTalentPool(userId);
+
+    const candidateName = `${user.firstName} ${user.lastName}`.trim() || user.email;
+    const { resumeId: resolvedResumeId, resumeTitle } = await this.resolveResumeForApply(
+      user.email,
+      resumeId,
+      profile
     );
+
+    const { applicationId } = await atsService.syncApplication({
+      jobId,
+      candidateName,
+      candidateEmail: user.email,
+      resumeId: resolvedResumeId,
+      resumeTitle,
+      resumeUrl: profile.resumeUrl || undefined,
+      appliedAt: new Date().toISOString(),
+      recruiterId: atsJobMeta.recruiterId,
+      companyId: atsJobMeta.companyId,
+      candidateData: buildApplicationCandidateData(user, profile),
+      coverLetter,
+    });
+
+    let application = existing;
+    if (!application) {
+      application = await applicationRepository.create({
+        userId: new Types.ObjectId(userId),
+        jobId,
+        jobTitle: job.title,
+        company: job.company,
+        companyLogo: job.companyLogo,
+        location: job.location,
+        salary: job.salary,
+        stage: 'applied',
+        atsApplicationId: applicationId,
+        atsStage: 'applied',
+        appliedAt: new Date(),
+        resumeId: resolvedResumeId,
+        resumeTitle,
+        isSaved: false,
+      });
+    } else {
+      application =
+        (await applicationRepository.update(application._id.toString(), {
+          isSaved: false,
+          jobTitle: job.title,
+          company: job.company,
+          companyLogo: job.companyLogo,
+          location: job.location,
+          salary: job.salary,
+          stage: 'applied',
+          atsApplicationId: applicationId,
+          atsStage: 'applied',
+          appliedAt: new Date(),
+          resumeId: resolvedResumeId,
+          resumeTitle,
+        })) || application;
+    }
+
+    return { application, created: !existing || existing.isSaved };
   }
 
   async saveJob(userId: string, jobData: {

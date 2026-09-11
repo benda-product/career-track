@@ -268,7 +268,11 @@ function BillingPageContent() {
       <div className="grid gap-4 md:grid-cols-2">
         {PLAN_CATALOG.map((plan) => {
           const isCurrent = entitlements?.plan === plan.key;
-          const annualPrice = (plan.priceYearly ?? plan.priceMonthly * 12 * 0.5).toFixed(2);
+          const annualPrice = (
+            'priceYearly' in plan && plan.priceYearly != null
+              ? plan.priceYearly
+              : plan.priceMonthly * 12 * 0.5
+          ).toFixed(2);
           const displayPrice =
             plan.priceMonthly === 0
               ? '$0'

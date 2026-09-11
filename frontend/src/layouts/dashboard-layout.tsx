@@ -24,7 +24,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!hasHydrated || !isAuthenticated) return;
-    if (pathname?.startsWith('/onboarding') || pathname?.startsWith('/applications')) {
+    if (pathname?.startsWith('/onboarding')) {
       setProfileChecked(true);
       return;
     }

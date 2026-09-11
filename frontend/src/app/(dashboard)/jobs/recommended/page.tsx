@@ -14,9 +14,9 @@ import { RecommendedJobCard } from '@/components/jobs/recommended-job-card';
 import { recommendedJobsService } from '@/services/recommendedJobs.service';
 import { usePlanEntitlements } from '@/hooks/use-plan-entitlements';
 import Link from 'next/link';
-import { RecommendedJob } from '@/types';
 import { cn } from '@/lib/utils';
-import { openTalentDeskApply } from '@/lib/talent-desk-apply';
+import { ApplyWithResumeDialog } from '@/components/jobs/apply-with-resume-dialog';
+import { useJobApply } from '@/hooks/use-job-apply';
 
 export default function RecommendedJobsPage() {
   // Local Filtering / Sorting / Pagination States
@@ -45,10 +45,18 @@ export default function RecommendedJobsPage() {
   });
 
   const rawJobs = data?.items || [];
-
-  const handleApplyClick = (job: RecommendedJob) => {
-    openTalentDeskApply(job.id, job.applyUrl);
-  };
+  const {
+    applyJob,
+    openApply,
+    closeApply,
+    submitApply,
+    submitting,
+    applyError,
+    resumes,
+    profileResumeId,
+    defaultResumeId,
+    createResume,
+  } = useJobApply();
 
   // Priority insights (Career Pro) — fetched from gated API
   const metrics = useMemo(() => {
@@ -352,7 +360,7 @@ export default function RecommendedJobsPage() {
                 <RecommendedJobCard
                   key={job.id}
                   job={job}
-                  onApply={handleApplyClick}
+                  onApply={openApply}
                 />
               ))}
             </div>
@@ -388,6 +396,27 @@ export default function RecommendedJobsPage() {
           )}
         </>
       )}
+
+      {applyError ? (
+        <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
+          {applyError}
+        </div>
+      ) : null}
+
+      <ApplyWithResumeDialog
+        open={Boolean(applyJob)}
+        onOpenChange={(open) => {
+          if (!open) closeApply();
+        }}
+        jobTitle={applyJob?.title || 'Role'}
+        company={applyJob?.company}
+        resumes={resumes}
+        defaultResumeId={defaultResumeId}
+        profileResumeId={profileResumeId}
+        submitting={submitting}
+        onSubmit={(resumeId) => void submitApply(resumeId)}
+        onCreateResume={createResume}
+      />
     </div>
   );
 }

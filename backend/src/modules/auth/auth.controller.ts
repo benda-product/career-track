@@ -53,6 +53,17 @@ export class AuthController {
     const result = await authService.ssoLogin(token, redirect || '/dashboard');
     sendSuccess(res, result, 'SSO login successful');
   });
+
+  applicantAccountStatus = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const email = String(req.query.email || '');
+    const result = await authService.getApplicantAccountStatus(email);
+    sendSuccess(res, result);
+  });
+
+  completeApplicantAccount = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const result = await authService.completeApplicantAccount(req.body);
+    sendSuccess(res, result, 'Account activated', 201);
+  });
 }
 
 export const authController = new AuthController();

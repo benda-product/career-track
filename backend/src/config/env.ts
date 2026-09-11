@@ -42,6 +42,10 @@ export const env = {
   },
   bendaInfotech: {
     apiUrl: process.env.BENDA_INFOTECH_API_URL || 'http://localhost:5004/api',
+    publicUrl:
+      process.env.BENDA_INFOTECH_PUBLIC_URL ||
+      process.env.BENDA_AUTH_FALLBACK_URL ||
+      'https://bendainfotech.com',
   },
   cloudinary: {
     cloudName: process.env.CLOUDINARY_CLOUD_NAME || '',

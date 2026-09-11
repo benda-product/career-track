@@ -8,6 +8,7 @@ import { extractJobsList, NormalizedJob } from '../../utils/atsJob.mapper';
 import { calculateTotalExperienceYears } from '../../utils/experience.util';
 import { scoreJobMatch, uniqueSkills } from '../../utils/jobMatch.util';
 import { logger } from '../../utils/logger';
+import { buildTalentDeskApplyUrl } from '../../utils/talentDeskApply';
 import { SavedJob } from './savedJob.model';
 import { RecommendedJob, RecommendedJobsResult, JobInsights } from './recommendation.types';
 
@@ -108,6 +109,7 @@ export class RecommendationService {
     try {
       if (skills.length) {
         const skillResult = await atsService.searchJobs({
+          channel: 'careerTrack',
           skills: skills.slice(0, 10).join(','),
           limit: 50,
         });
@@ -115,7 +117,7 @@ export class RecommendationService {
       }
 
       if (pools.length < 25) {
-        const generalResult = await atsService.searchJobs({ limit: 50 });
+        const generalResult = await atsService.searchJobs({ channel: 'careerTrack', limit: 50 });
         pools.push(...extractJobsList(generalResult));
       }
     } catch (error) {
@@ -137,16 +139,28 @@ export class RecommendationService {
       company: job.company,
       companyLogo: job.companyLogo,
       location: job.location,
+      department: job.department,
       salary: job.salary,
       employmentType: job.employmentType,
+      experienceLevel: job.experienceLevel,
       remote: job.remote,
       hybrid: job.hybrid,
+      description: job.description,
+      responsibilities: job.responsibilities,
+      qualificationsText: job.qualificationsText,
+      benefits: job.benefits,
+      skills: job.skills,
+      openings: job.openings,
+      jobReferenceId: job.jobReferenceId,
+      minExperience: job.minExperience,
+      maxExperience: job.maxExperience,
       postedAt: toIsoDate(job.postedAt),
       matchScore: scoring.matchScore,
       matchedSkills: scoring.matchedSkills,
       missingSkills: scoring.missingSkills,
       isSaved: context.savedJobIds.has(job.id),
       alreadyApplied: context.appliedJobIds.has(job.id),
+      applyUrl: buildTalentDeskApplyUrl(job.id),
     };
   }
 

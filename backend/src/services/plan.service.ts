@@ -297,7 +297,7 @@ export const planService = {
 
     const hasRemainingPeriod = periodEnd && periodEnd > new Date();
 
-    if (hasRemainingPeriod) {
+    if (hasRemainingPeriod && periodEnd) {
       await User.findByIdAndUpdate(userId, { subscriptionCancelAtPeriodEnd: true });
       const untilLabel = periodEnd.toLocaleDateString('en-US', {
         year: 'numeric',
