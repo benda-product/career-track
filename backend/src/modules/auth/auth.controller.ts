@@ -3,25 +3,54 @@ import { AuthRequest } from '../../middlewares/auth.middleware';
 import { authService } from './auth.service';
 import { asyncHandler } from '../../utils/asyncHandler';
 import { sendSuccess } from '../../utils/response';
+import {
+  clearAuthCookies,
+  readRefreshTokenFromRequest,
+  setAuthCookies,
+} from '../../utils/authCookie';
+
+function attachAuthCookies(
+  req: AuthRequest,
+  res: Response,
+  result: { accessToken?: string; refreshToken?: string } | null | undefined
+) {
+  if (result?.accessToken || result?.refreshToken) {
+    setAuthCookies(res, req, {
+      accessToken: result.accessToken,
+      refreshToken: result.refreshToken,
+    });
+  }
+}
 
 export class AuthController {
   register = asyncHandler(async (req: AuthRequest, res: Response) => {
     const result = await authService.register(req.body);
+    attachAuthCookies(req, res, result);
     sendSuccess(res, result, 'Registration successful', 201);
   });
 
   login = asyncHandler(async (req: AuthRequest, res: Response) => {
     const result = await authService.login(req.body);
+    attachAuthCookies(req, res, result);
     sendSuccess(res, result, 'Login successful');
   });
 
   refreshToken = asyncHandler(async (req: AuthRequest, res: Response) => {
-    const tokens = await authService.refreshToken(req.body.refreshToken);
+    const refresh = readRefreshTokenFromRequest(req);
+    if (!refresh) {
+      return res.status(401).json({ success: false, message: 'Refresh token required' });
+    }
+    const tokens = await authService.refreshToken(refresh);
+    attachAuthCookies(req, res, tokens);
     sendSuccess(res, tokens, 'Token refreshed');
   });
 
   logout = asyncHandler(async (req: AuthRequest, res: Response) => {
-    await authService.logout(req.body.refreshToken);
+    const refresh = readRefreshTokenFromRequest(req);
+    if (refresh) {
+      await authService.logout(refresh);
+    }
+    clearAuthCookies(res, req);
     sendSuccess(res, null, 'Logged out successfully');
   });
 
@@ -42,6 +71,7 @@ export class AuthController {
 
   googleLogin = asyncHandler(async (req: AuthRequest, res: Response) => {
     const result = await authService.googleLogin(req.body.idToken);
+    attachAuthCookies(req, res, result);
     sendSuccess(res, result, 'Google login successful');
   });
 
@@ -51,6 +81,7 @@ export class AuthController {
       return res.status(400).json({ success: false, message: 'SSO token is required' });
     }
     const result = await authService.ssoLogin(token, redirect || '/dashboard');
+    attachAuthCookies(req, res, result);
     sendSuccess(res, result, 'SSO login successful');
   });
 
@@ -62,6 +93,7 @@ export class AuthController {
 
   completeApplicantAccount = asyncHandler(async (req: AuthRequest, res: Response) => {
     const result = await authService.completeApplicantAccount(req.body);
+    attachAuthCookies(req, res, result);
     sendSuccess(res, result, 'Account activated', 201);
   });
 }

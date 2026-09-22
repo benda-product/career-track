@@ -1,11 +1,16 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 import { getApiUrl } from '@/constants';
-import { useAuthStore } from '@/store/auth.store';
+import {
+  getStoredAccessToken,
+  getStoredRefreshToken,
+  useAuthStore,
+} from '@/store/auth.store';
 
 const apiClient = axios.create({
   baseURL: getApiUrl(),
   timeout: 30000,
   headers: { 'Content-Type': 'application/json' },
+  withCredentials: true,
 });
 
 let isRefreshing = false;
@@ -24,8 +29,9 @@ const processQueue = (error: unknown, token: string | null = null) => {
 
 apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   config.baseURL = getApiUrl();
+  config.withCredentials = true;
   if (typeof window !== 'undefined') {
-    const token = localStorage.getItem('accessToken');
+    const token = getStoredAccessToken() || useAuthStore.getState().accessToken;
     if (token) config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
@@ -71,15 +77,13 @@ apiClient.interceptors.response.use(
       originalRequest._retry = true;
       isRefreshing = true;
 
-      const refreshToken = localStorage.getItem('refreshToken');
-      if (!refreshToken) {
-        localStorage.removeItem('accessToken');
-        window.location.href = '/auth/login';
-        return Promise.reject(error);
-      }
-
+      const refreshToken = getStoredRefreshToken() || useAuthStore.getState().refreshToken;
       try {
-        const { data } = await axios.post(`${getApiUrl()}/auth/refresh-token`, { refreshToken });
+        const { data } = await axios.post(
+          `${getApiUrl()}/auth/refresh-token`,
+          refreshToken ? { refreshToken } : {},
+          { withCredentials: true }
+        );
         const newToken = data.data.accessToken;
         const newRefreshToken = data.data.refreshToken;
         useAuthStore.getState().updateTokens(newToken, newRefreshToken);
@@ -88,8 +92,7 @@ apiClient.interceptors.response.use(
         return apiClient(originalRequest);
       } catch (refreshError) {
         processQueue(refreshError, null);
-        localStorage.removeItem('accessToken');
-        localStorage.removeItem('refreshToken');
+        useAuthStore.getState().clearAuth();
         window.location.href = '/auth/login';
         return Promise.reject(refreshError);
       } finally {

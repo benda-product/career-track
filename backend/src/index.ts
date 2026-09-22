@@ -5,6 +5,9 @@ import { connectDatabase } from './config/database';
 import { initSocket } from './sockets/notification.socket';
 import { logger } from './utils/logger';
 import { atsApiBases, probeAtsConnectivity } from './services/ats.service';
+import { assertSecurityEnv } from './utils/assertSecurityEnv';
+
+assertSecurityEnv({ requireTurnstile: true });
 
 const start = async () => {
   await connectDatabase();

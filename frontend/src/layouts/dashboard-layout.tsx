@@ -3,18 +3,23 @@
 import { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
+import axios from 'axios';
 import { Sidebar } from '@/components/resume/Sidebar';
 import { TopNavbar } from '@/components/resume/TopNavbar';
 import { SocketProvider } from '@/components/providers/socket-provider';
-import { useAuthStore } from '@/store/auth.store';
+import { getStoredAccessToken, useAuthStore } from '@/store/auth.store';
 import { profileService } from '@/services/profile.service';
+import { getApiUrl } from '@/constants';
 
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const hasHydrated = useAuthStore((s) => s.hasHydrated);
+  const updateTokens = useAuthStore((s) => s.updateTokens);
+  const clearAuth = useAuthStore((s) => s.clearAuth);
   const [profileChecked, setProfileChecked] = useState(false);
+  const [sessionReady, setSessionReady] = useState(false);
 
   useEffect(() => {
     if (hasHydrated && !isAuthenticated) {
@@ -22,8 +27,42 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
     }
   }, [hasHydrated, isAuthenticated, router]);
 
+  // After refresh, JWTs live only in httpOnly cookies — restore memory Bearer for sockets.
   useEffect(() => {
     if (!hasHydrated || !isAuthenticated) return;
+    if (getStoredAccessToken() || useAuthStore.getState().accessToken) {
+      setSessionReady(true);
+      return;
+    }
+
+    let cancelled = false;
+    axios
+      .post(`${getApiUrl()}/auth/refresh-token`, {}, { withCredentials: true })
+      .then(({ data }) => {
+        if (cancelled) return;
+        const accessToken = data?.data?.accessToken;
+        const refreshToken = data?.data?.refreshToken;
+        if (accessToken && refreshToken) {
+          updateTokens(accessToken, refreshToken);
+          setSessionReady(true);
+        } else {
+          clearAuth();
+          router.push('/auth/login');
+        }
+      })
+      .catch(() => {
+        if (cancelled) return;
+        clearAuth();
+        router.push('/auth/login');
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [hasHydrated, isAuthenticated, updateTokens, clearAuth, router]);
+
+  useEffect(() => {
+    if (!hasHydrated || !isAuthenticated || !sessionReady) return;
     if (pathname?.startsWith('/onboarding')) {
       setProfileChecked(true);
       return;
@@ -39,9 +78,9 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
         setProfileChecked(true);
       })
       .catch(() => setProfileChecked(true));
-  }, [hasHydrated, isAuthenticated, pathname, router]);
+  }, [hasHydrated, isAuthenticated, sessionReady, pathname, router]);
 
-  if (!hasHydrated) {
+  if (!hasHydrated || (isAuthenticated && !sessionReady)) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />

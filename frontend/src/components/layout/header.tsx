@@ -16,7 +16,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Sidebar } from './sidebar';
-import { useAuthStore } from '@/store/auth.store';
+import { useAuthStore, getStoredRefreshToken } from '@/store/auth.store';
 import { authService } from '@/services/auth.service';
 import { useSocketStatus } from '@/components/providers/socket-provider';
 
@@ -27,9 +27,7 @@ export function Header() {
   const socketStatus = useSocketStatus();
 
   const handleLogout = async () => {
-    const token =
-      refreshToken ||
-      (typeof window !== 'undefined' ? localStorage.getItem('refreshToken') : null);
+    const token = refreshToken || getStoredRefreshToken();
     if (token) await authService.logout(token);
     clearAuth();
     router.push('/auth/login');

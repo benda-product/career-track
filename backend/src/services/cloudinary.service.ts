@@ -19,8 +19,8 @@ export class CloudinaryService {
       {
         folder: options.folder,
         resource_type: 'raw',
-        access_mode: 'public',
-        type: 'upload',
+        access_mode: 'authenticated',
+        type: 'authenticated',
         public_id: options.filename.endsWith('.pdf') ? options.filename : `${options.filename}.pdf`,
       }
     );

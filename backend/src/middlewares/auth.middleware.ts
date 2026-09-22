@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { verifyAccessToken } from '../utils/token';
 import { ApiError } from '../utils/apiError';
 import { UserRole } from '../types';
+import { readAccessTokenFromRequest } from '../utils/authCookie';
 
 export interface AuthRequest extends Request {
   user?: {
@@ -12,12 +13,11 @@ export interface AuthRequest extends Request {
 }
 
 export const authenticate = (req: AuthRequest, _res: Response, next: NextFunction): void => {
-  const authHeader = req.headers.authorization;
-  if (!authHeader?.startsWith('Bearer ')) {
+  const token = readAccessTokenFromRequest(req);
+  if (!token) {
     return next(new ApiError(401, 'Authentication required'));
   }
 
-  const token = authHeader.split(' ')[1];
   try {
     const payload = verifyAccessToken(token);
     req.user = payload;

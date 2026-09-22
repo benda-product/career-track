@@ -17,9 +17,45 @@ interface AuthState {
 
 export const TOKEN_REFRESHED_EVENT = 'careertrack-token-refreshed';
 
+/** In-memory tokens only — never persist JWTs to localStorage. */
+let memoryAccessToken: string | null = null;
+let memoryRefreshToken: string | null = null;
+
+function scrubLegacyTokenStorage() {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('refreshToken');
+  } catch {
+    /* ignore */
+  }
+}
+
+function migrateLegacyTokensOnce() {
+  if (typeof window === 'undefined') return;
+  try {
+    const legacyAccess = localStorage.getItem('accessToken');
+    const legacyRefresh = localStorage.getItem('refreshToken');
+    if (legacyAccess && !memoryAccessToken) memoryAccessToken = legacyAccess;
+    if (legacyRefresh && !memoryRefreshToken) memoryRefreshToken = legacyRefresh;
+    scrubLegacyTokenStorage();
+  } catch {
+    /* ignore */
+  }
+}
+
+migrateLegacyTokensOnce();
+
 export function getStoredAccessToken(): string | null {
-  if (typeof window === 'undefined') return null;
-  return localStorage.getItem('accessToken');
+  if (memoryAccessToken) return memoryAccessToken;
+  migrateLegacyTokensOnce();
+  return memoryAccessToken;
+}
+
+export function getStoredRefreshToken(): string | null {
+  if (memoryRefreshToken) return memoryRefreshToken;
+  migrateLegacyTokensOnce();
+  return memoryRefreshToken;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -31,16 +67,16 @@ export const useAuthStore = create<AuthState>()(
       isAuthenticated: false,
       hasHydrated: false,
       setAuth: (user, accessToken, refreshToken) => {
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('accessToken', accessToken);
-          localStorage.setItem('refreshToken', refreshToken);
-        }
+        memoryAccessToken = accessToken;
+        memoryRefreshToken = refreshToken;
+        scrubLegacyTokenStorage();
         set({ user, accessToken, refreshToken, isAuthenticated: true, hasHydrated: true });
       },
       updateTokens: (accessToken, refreshToken) => {
+        memoryAccessToken = accessToken;
+        memoryRefreshToken = refreshToken;
+        scrubLegacyTokenStorage();
         if (typeof window !== 'undefined') {
-          localStorage.setItem('accessToken', accessToken);
-          localStorage.setItem('refreshToken', refreshToken);
           window.dispatchEvent(
             new CustomEvent(TOKEN_REFRESHED_EVENT, { detail: { accessToken } })
           );
@@ -48,10 +84,9 @@ export const useAuthStore = create<AuthState>()(
         set({ accessToken, refreshToken });
       },
       clearAuth: () => {
-        if (typeof window !== 'undefined') {
-          localStorage.removeItem('accessToken');
-          localStorage.removeItem('refreshToken');
-        }
+        memoryAccessToken = null;
+        memoryRefreshToken = null;
+        scrubLegacyTokenStorage();
         set({ user: null, accessToken: null, refreshToken: null, isAuthenticated: false });
       },
       updateUser: (updates) =>
@@ -64,8 +99,6 @@ export const useAuthStore = create<AuthState>()(
       name: 'careertrack-auth',
       partialize: (state) => ({
         user: state.user,
-        accessToken: state.accessToken,
-        refreshToken: state.refreshToken,
         isAuthenticated: state.isAuthenticated,
       }),
       onRehydrateStorage: () => (state, error) => {
@@ -73,9 +106,11 @@ export const useAuthStore = create<AuthState>()(
           console.error('Auth rehydration failed', error);
           return;
         }
-        if (state && typeof window !== 'undefined') {
-          if (state.accessToken) localStorage.setItem('accessToken', state.accessToken);
-          if (state.refreshToken) localStorage.setItem('refreshToken', state.refreshToken);
+        scrubLegacyTokenStorage();
+        if (state) {
+          // Tokens stay in memory / httpOnly cookies only.
+          state.accessToken = memoryAccessToken;
+          state.refreshToken = memoryRefreshToken;
         }
       },
     }
@@ -83,7 +118,11 @@ export const useAuthStore = create<AuthState>()(
 );
 
 function markAuthHydrated() {
-  useAuthStore.setState({ hasHydrated: true });
+  useAuthStore.setState({
+    hasHydrated: true,
+    accessToken: memoryAccessToken,
+    refreshToken: memoryRefreshToken,
+  });
 }
 
 if (typeof window !== 'undefined') {
