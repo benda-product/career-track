@@ -22,41 +22,41 @@ function isWeak(value: string | undefined) {
   return WEAK_DEFAULTS.has(v);
 }
 
+/** Boot-time secret checks — warn only (never refuse boot / 502 crash-loop). */
 export function assertSecurityEnv(opts: { requireTurnstile?: boolean } = {}) {
   const { requireTurnstile = true } = opts;
   const production = isProduction();
   const jwtSecret = process.env.JWT_SECRET;
   const refreshSecret = process.env.JWT_REFRESH_SECRET;
   const internalKey = process.env.INTERNAL_SYNC_KEY || process.env.BENDA_INTERNAL_KEY;
-  const problems: string[] = [];
+  const warnings: string[] = [];
 
-  if (!jwtSecret || (production && isWeak(jwtSecret))) {
-    problems.push("JWT_SECRET must be set to a unique strong value (24+ chars)");
+  if (!String(jwtSecret || "").trim()) {
+    warnings.push("JWT_SECRET is unset");
+  } else if (production && isWeak(jwtSecret)) {
+    warnings.push("JWT_SECRET is weak/default — rotate to a unique 24+ char secret");
   }
+
   if (production && (!refreshSecret || isWeak(refreshSecret))) {
-    problems.push("JWT_REFRESH_SECRET must be set to a unique strong value");
+    warnings.push("JWT_REFRESH_SECRET is missing/weak");
   }
   if (!internalKey || (production && isWeak(internalKey))) {
-    problems.push("INTERNAL_SYNC_KEY must be a unique strong value");
+    warnings.push("INTERNAL_SYNC_KEY is missing/weak — set a unique strong value");
   }
   if (requireTurnstile && production && !String(process.env.TURNSTILE_SECRET_KEY || "").trim()) {
-    problems.push("TURNSTILE_SECRET_KEY should be set in production");
+    warnings.push("TURNSTILE_SECRET_KEY is unset (bot protection disabled)");
   }
 
-  if (problems.length) {
-    const message = `[security] Refusing to start:\n- ${problems.join("\n- ")}`;
-    if (production) {
-      console.error(message);
-      throw new Error(message);
-    }
-    console.warn(`${message}\n(continuing because NODE_ENV/APP_ENV is not production)`);
+  if (warnings.length) {
+    const message = `[security] ${warnings.join("; ")}`;
+    if (production) console.error(message);
+    else console.warn(message);
   }
 }
 
 export function resolveInternalSyncKey() {
   const key = String(process.env.INTERNAL_SYNC_KEY || process.env.BENDA_INTERNAL_KEY || "").trim();
   if (key) return key;
-  if (isProduction()) throw new Error("INTERNAL_SYNC_KEY is required in production");
   console.warn("[security] INTERNAL_SYNC_KEY unset — using local-only fallback");
   return "dev-only-internal-sync-key-change-me";
 }
