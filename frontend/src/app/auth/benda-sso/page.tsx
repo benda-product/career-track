@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 import { useAuthStore } from '@/store/auth.store';
 import { User, UserRole } from '@/types';
+import { resolveWorkspacePath } from '@/lib/post-auth-navigation';
 
 function BendaSsoPageContent() {
   const router = useRouter();
@@ -42,7 +43,7 @@ function BendaSsoPageContent() {
     };
 
     setAuth(user, accessToken, refreshToken);
-    router.replace(redirect);
+    router.replace(resolveWorkspacePath(role, redirect));
   }, [router, searchParams, setAuth]);
 
   return (

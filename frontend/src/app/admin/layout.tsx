@@ -1,81 +1,107 @@
 'use client';
 
-import Link from 'next/link';
+import { Suspense, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
-import { useAuthStore } from '@/store/auth.store';
-import { EcosystemAdminConsoleSwitcher } from '@/components/admin/ecosystem-admin-console-switcher';
-import { CareerTrackLogo } from '@/components/brand/career-track-logo';
+import axios from 'axios';
+import { Loader2 } from 'lucide-react';
+import { AdminSidebar } from '@/components/layout/admin-sidebar';
+import { AdminHeader } from '@/components/layout/admin-header';
+import { SocketProvider } from '@/components/providers/socket-provider';
+import { getStoredAccessToken, useAuthStore } from '@/store/auth.store';
+import { getApiUrl } from '@/constants';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const user = useAuthStore((state) => state.user);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const hasHydrated = useAuthStore((state) => state.hasHydrated);
+  const updateTokens = useAuthStore((state) => state.updateTokens);
   const clearAuth = useAuthStore((state) => state.clearAuth);
+  const [sessionReady, setSessionReady] = useState(false);
 
   useEffect(() => {
-    if (hasHydrated && user?.role !== 'admin') {
-      router.replace('/dashboard');
+    if (!hasHydrated) return;
+    if (!isAuthenticated || user?.role !== 'admin') {
+      router.replace(user && user.role !== 'admin' ? '/dashboard' : '/auth/login?redirect=/admin');
     }
-  }, [hasHydrated, user, router]);
+  }, [hasHydrated, isAuthenticated, user, router]);
 
-  if (!hasHydrated || user?.role !== 'admin') {
+  useEffect(() => {
+    if (!hasHydrated || !isAuthenticated || user?.role !== 'admin') return;
+    if (getStoredAccessToken() || useAuthStore.getState().accessToken) {
+      setSessionReady(true);
+      return;
+    }
+
+    let cancelled = false;
+    axios
+      .post(`${getApiUrl()}/auth/refresh-token`, {}, { withCredentials: true })
+      .then(({ data }) => {
+        if (cancelled) return;
+        const accessToken = data?.data?.accessToken;
+        const refreshToken = data?.data?.refreshToken;
+        if (accessToken && refreshToken) {
+          updateTokens(accessToken, refreshToken);
+          setSessionReady(true);
+        } else {
+          clearAuth();
+          router.push('/auth/login?redirect=/admin');
+        }
+      })
+      .catch(() => {
+        if (cancelled) return;
+        clearAuth();
+        router.push('/auth/login?redirect=/admin');
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [hasHydrated, isAuthenticated, user, updateTokens, clearAuth, router]);
+
+  if (!hasHydrated || !isAuthenticated || user?.role !== 'admin' || !sessionReady) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50 text-sm text-slate-500">
-        Checking admin access…
+      <div className="flex min-h-screen items-center justify-center bg-slate-50/50">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
       </div>
     );
   }
 
+  const bendaHubUrl = process.env.NEXT_PUBLIC_BENDA_URL || 'http://localhost:3004';
+
   return (
-    <div className="flex min-h-screen bg-[#F4F7FB]">
-      <aside className="flex w-72 shrink-0 flex-col border-r border-slate-200 bg-white">
-        <div className="border-b border-slate-200 p-4">
-          <Link href="/admin" className="flex items-center gap-3">
-            <CareerTrackLogo size="md" />
-          </Link>
-          <p className="mt-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Admin Console</p>
-          <div className="mt-3">
-            <EcosystemAdminConsoleSwitcher currentId="career-track" />
-          </div>
+    <SocketProvider>
+      <div className="flex min-h-screen bg-slate-50/50">
+        <AdminSidebar className="hidden lg:flex" />
+        <div className="flex min-w-0 flex-1 flex-col">
+          <AdminHeader />
+          <main className="flex-1 overflow-auto bg-slate-50/30 p-4 lg:p-6">
+            <Suspense
+              fallback={
+                <div className="flex min-h-[40vh] items-center justify-center">
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                </div>
+              }
+            >
+              {children}
+            </Suspense>
+          </main>
+          <footer className="border-t border-slate-200/60 bg-white/50 px-6 py-3.5 text-center text-[11px] font-medium text-slate-400">
+            <span>
+              © {new Date().getFullYear()} CareerTrack • Powered by{' '}
+              <a
+                href={bendaHubUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="text-slate-500 transition-colors hover:text-primary"
+              >
+                Benda Infotech
+              </a>
+              .
+            </span>
+          </footer>
         </div>
-        <nav className="flex-1 p-3">
-          <Link
-            href="/admin"
-            className="block rounded-lg bg-blue-50 px-3 py-2 text-sm font-semibold text-[#015DC0]"
-          >
-            Overview
-          </Link>
-          <Link
-            href="/dashboard"
-            className="mt-1 block rounded-lg px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
-          >
-            Candidate dashboard
-          </Link>
-        </nav>
-        <div className="border-t border-slate-200 p-4">
-          <p className="truncate text-sm font-semibold text-slate-900">
-            {user.firstName} {user.lastName}
-          </p>
-          <p className="truncate text-xs text-slate-500">{user.email}</p>
-          <button
-            type="button"
-            onClick={() => {
-              clearAuth();
-              router.push('/auth/login');
-            }}
-            className="mt-3 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-          >
-            Sign out
-          </button>
-        </div>
-      </aside>
-      <div className="flex min-w-0 flex-1 flex-col">
-        <main className="flex-1 p-6 lg:p-8">{children}</main>
-        <footer className="border-t border-slate-200 bg-white px-6 py-4 text-xs text-slate-500">
-          © {new Date().getFullYear()} Career Track Admin • Powered by Benda Infotech
-        </footer>
       </div>
-    </div>
+    </SocketProvider>
   );
 }

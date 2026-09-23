@@ -61,7 +61,7 @@ function LoginPageContent() {
     try {
       const result = await authService.login({ ...data, turnstileToken });
       setAuth(result.user, result.accessToken, result.refreshToken);
-      await navigateAfterAuth(router, redirectPath);
+      await navigateAfterAuth(router, redirectPath, result.user.role);
     } catch (err) {
       const apiMessage = isAxiosError(err)
         ? (err.response?.data as { message?: string } | undefined)?.message
@@ -95,7 +95,7 @@ function LoginPageContent() {
             try {
               const result = await authService.googleLogin(idToken);
               setAuth(result.user, result.accessToken, result.refreshToken);
-              await navigateAfterAuth(router, redirectPath);
+              await navigateAfterAuth(router, redirectPath, result.user.role);
             } catch (err) {
               const apiMessage = isAxiosError(err)
                 ? (err.response?.data as { message?: string } | undefined)?.message

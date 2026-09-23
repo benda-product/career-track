@@ -324,6 +324,32 @@ export class JobsService {
   async getRecommendedJobs(userId: string, page = 1, limit = 10) {
     return recommendationService.getRecommendedJobs(userId, page, limit);
   }
+
+  /** Career Track job catalog from Talent Desk, including the upstream total when present. */
+  async searchCatalog(filters: JobSearchFilters): Promise<{ jobs: NormalizedJob[]; total: number | null }> {
+    const result = await atsService.searchJobs(toAtsQuery(filters) as JobSearchFilters);
+    const jobs = extractJobsList(result).map(withTalentDeskApplyUrl);
+    return { jobs, total: readCatalogTotal(result) };
+  }
+}
+
+function readCatalogTotal(data: unknown): number | null {
+  if (!data || typeof data !== 'object') return null;
+  const obj = data as Record<string, unknown>;
+  const nested = [obj.pagination, obj.meta, obj.data].filter(
+    (value): value is Record<string, unknown> => Boolean(value) && typeof value === 'object' && !Array.isArray(value)
+  );
+  const candidates = [
+    obj.total,
+    obj.count,
+    obj.totalCount,
+    ...nested.flatMap((item) => [item.total, item.count, item.totalCount]),
+  ];
+  for (const value of candidates) {
+    const total = Number(value);
+    if (Number.isFinite(total)) return total;
+  }
+  return null;
 }
 
 export const jobsService = new JobsService();
