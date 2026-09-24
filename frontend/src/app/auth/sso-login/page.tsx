@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 import { useAuthStore } from '@/store/auth.store';
 import { UserRole } from '@/types';
+import { resolveWorkspacePath } from '@/lib/post-auth-navigation';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5003/api/v1';
 
@@ -14,10 +15,10 @@ function SsoLoginContent() {
   const setAuth = useAuthStore((s) => s.setAuth);
   const [error, setError] = useState('');
 
-  useEffect(() => {
-    const token = searchParams.get('token');
-    const redirect = searchParams.get('redirect') || '/dashboard';
+  const token = searchParams.get('token');
+  const redirect = searchParams.get('redirect') || '/dashboard';
 
+  useEffect(() => {
     if (!token) {
       router.replace('/auth/login');
       return;
@@ -25,20 +26,22 @@ function SsoLoginContent() {
 
     let cancelled = false;
 
-    fetch(`${API_BASE}/auth/sso-login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ token, redirect }),
-    })
-      .then(async (response) => {
-        const json = await response.json();
+    async function completeSso() {
+      try {
+        const response = await fetch(`${API_BASE}/auth/sso-login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ token, redirect }),
+        });
+        const json = await response.json().catch(() => ({}));
         if (!response.ok) {
           throw new Error(json.message || 'Unable to complete sign in.');
         }
-        return json.data ?? json;
-      })
-      .then((data) => {
+        const data = json.data ?? json;
         if (cancelled) return;
+
+        const role = (data.user?.role || 'candidate') as UserRole;
         if (data.accessToken && data.user) {
           setAuth(
             {
@@ -46,24 +49,28 @@ function SsoLoginContent() {
               email: data.user.email,
               firstName: data.user.firstName,
               lastName: data.user.lastName,
-              role: (data.user.role || 'candidate') as UserRole,
+              role,
               isEmailVerified: Boolean(data.user.isEmailVerified),
             },
             data.accessToken,
             data.refreshToken,
           );
         }
-        window.location.replace(data.redirect || redirect);
-      })
-      .catch((err: Error) => {
+        // Soft navigate so in-memory tokens survive; cookies cover hard refresh.
+        router.replace(resolveWorkspacePath(role, data.redirect || redirect));
+      } catch (err) {
         if (cancelled) return;
-        setError(err.message || 'Unable to sign in from Benda Infotech.');
-      });
+        const message =
+          err instanceof Error ? err.message : 'Unable to sign in from Benda Infotech.';
+        setError(message);
+      }
+    }
 
+    void completeSso();
     return () => {
       cancelled = true;
     };
-  }, [router, searchParams]);
+  }, [router, token, redirect, setAuth]);
 
   if (error) {
     return (
