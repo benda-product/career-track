@@ -321,6 +321,58 @@ class AtsService {
       throw error;
     }
   }
+
+  private internalHeaders() {
+    return {
+      'x-benda-key': env.internalSyncKey,
+      'x-benda-internal-key': env.internalSyncKey,
+    };
+  }
+
+  async listCandidateMessageThreads(email: string) {
+    return this.request<{ threads: Record<string, unknown>[]; candidateId: string | null }>(
+      'GET',
+      '/internal/messages/threads',
+      undefined,
+      { email },
+      { headers: this.internalHeaders() }
+    );
+  }
+
+  async listCandidateThreadMessages(email: string, threadId: string) {
+    return this.request<{ messages: Record<string, unknown>[]; candidateId: string }>(
+      'GET',
+      `/internal/messages/threads/${encodeURIComponent(threadId)}`,
+      undefined,
+      { email },
+      { headers: this.internalHeaders() }
+    );
+  }
+
+  async replyCandidateMessage(payload: {
+    email: string;
+    body: string;
+    threadId?: string;
+    applicationId?: string;
+  }) {
+    return this.request<{ message: Record<string, unknown>; candidateId: string }>(
+      'POST',
+      '/internal/messages/reply',
+      payload,
+      undefined,
+      { headers: this.internalHeaders() }
+    );
+  }
+
+  async markCandidateThreadRead(email: string, threadId: string) {
+    return this.request<{ ok: boolean }>(
+      'PATCH',
+      `/internal/messages/threads/${encodeURIComponent(threadId)}/read`,
+      { email },
+      undefined,
+      { headers: this.internalHeaders() }
+    );
+  }
 }
 
 export const atsService = new AtsService();

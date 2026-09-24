@@ -10,6 +10,7 @@ import {
   Briefcase,
   ChevronDown,
   LayoutDashboard,
+  Mail,
   Shield,
   UserRound,
   Users,
@@ -61,7 +62,10 @@ const NAV_GROUPS: NavGroup[] = [
     title: 'System',
     icon: Activity,
     collapsible: false,
-    items: [{ href: '/admin/activity', label: 'Activity', icon: Activity }],
+    items: [
+      { href: '/admin/activity', label: 'Activity', icon: Activity },
+      { href: '/admin/email-previews', label: 'Email Previews', icon: Mail },
+    ],
   },
 ];
 

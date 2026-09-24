@@ -128,3 +128,17 @@ export const listActivity = asyncHandler(async (req: AuthRequest, res: Response)
     totalPages: data.totalPages,
   });
 });
+
+export const listEmailPreviews = asyncHandler(async (_req: AuthRequest, res: Response) => {
+  const { listEmailPreviews: list } = await import('../../emails/templates');
+  res.set('Cache-Control', 'no-store');
+  sendSuccess(res, { emails: list() });
+});
+
+export const getEmailPreview = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const { getEmailPreview: getPreview } = await import('../../emails/templates');
+  res.set('Cache-Control', 'no-store');
+  const preview = getPreview(String(req.params.id || ''));
+  if (!preview) throw new ApiError(404, 'Email preview not found');
+  sendSuccess(res, { email: preview, layout: 'skillcheck-format', version: 2 });
+});

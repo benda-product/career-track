@@ -42,7 +42,11 @@ function isApplicationUpdateNotification(notification: {
   type?: string;
   data?: Record<string, unknown>;
 }) {
-  return notification.type === 'application_update' || Boolean(notification.data?.applicationId);
+  return (
+    notification.type === 'application_update' ||
+    notification.type === 'recruiter_message' ||
+    Boolean(notification.data?.applicationId)
+  );
 }
 
 function getNotificationIcon(n: { title?: string; type?: string; data?: Record<string, unknown> }) {
@@ -50,6 +54,12 @@ function getNotificationIcon(n: { title?: string; type?: string; data?: Record<s
     return {
       icon: Trophy,
       bg: 'bg-amber-50 text-amber-600 dark:bg-amber-950/20 dark:text-amber-400',
+    };
+  }
+  if (n.type === 'recruiter_message') {
+    return {
+      icon: Briefcase,
+      bg: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/20 dark:text-emerald-400',
     };
   }
   if (isApplicationUpdateNotification(n)) {
@@ -206,7 +216,11 @@ export default function NotificationsPage() {
                     )}
                     onClick={() => {
                       if (skillCheck) router.push('/skill-check');
-                      else if (applicationUpdate) router.push('/applications');
+                      else if (n.type === 'recruiter_message') {
+                        const deepLink =
+                          typeof n.data?.deepLink === 'string' ? n.data.deepLink : '/messages';
+                        router.push(deepLink.startsWith('/') ? deepLink : '/messages');
+                      } else if (applicationUpdate) router.push('/applications');
                     }}
                   >
                     <CardContent className="flex items-start gap-4 p-5">

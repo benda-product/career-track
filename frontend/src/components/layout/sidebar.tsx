@@ -63,7 +63,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
       { href: '/profile', label: 'My Profile', icon: User },
-      { href: '/mock-interview', label: 'Mock Interview', icon: MessageSquare },
+      { href: '/mock-interview', label: 'Mock Interview', icon: PlayCircle },
     ],
   },
   {
@@ -189,6 +189,7 @@ const NAV_GROUPS: NavGroup[] = [
     collapsible: false,
     items: [
       { href: '/notifications', label: 'Notifications', icon: Bell },
+      { href: '/messages', label: 'Messages', icon: MessageSquare },
       { href: '/billing', label: 'Billing', icon: CreditCard },
       { href: '/settings', label: 'Settings', icon: Settings },
     ],

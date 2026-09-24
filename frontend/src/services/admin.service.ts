@@ -111,4 +111,40 @@ export const adminService = {
     });
     return unwrap(res);
   },
+
+  emailPreviews: async () => {
+    const res = await apiClient.get<
+      ApiResponse<{
+        emails: Array<{
+          id: string;
+          area: string;
+          name: string;
+          subject: string;
+          fromCategory: string;
+          brand?: string;
+        }>;
+      }>
+    >('/admin/email-previews');
+    return unwrap(res);
+  },
+
+  emailPreview: async (id: string) => {
+    const res = await apiClient.get<
+      ApiResponse<{
+        email: {
+          id: string;
+          area: string;
+          name: string;
+          subject: string;
+          fromCategory: string;
+          brand?: string;
+          text: string;
+          html: string;
+        };
+        layout?: string;
+        version?: number;
+      }>
+    >(`/admin/email-previews/${encodeURIComponent(id)}`);
+    return unwrap(res);
+  },
 };

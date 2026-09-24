@@ -16,7 +16,15 @@ const notificationSchema = new Schema<INotification>(
     userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     type: {
       type: String,
-      enum: ['job_match', 'application_update', 'resume_score', 'interview_invite', 'profile_suggestion', 'system'],
+      enum: [
+        'job_match',
+        'application_update',
+        'resume_score',
+        'interview_invite',
+        'profile_suggestion',
+        'recruiter_message',
+        'system',
+      ],
       required: true,
     },
     title: { type: String, required: true },

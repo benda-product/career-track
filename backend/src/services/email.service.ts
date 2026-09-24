@@ -1,6 +1,7 @@
 import nodemailer from 'nodemailer';
 import { env } from '../config/env';
 import { logger } from '../utils/logger';
+import { buildPasswordResetEmail, buildVerificationEmail } from '../emails/templates';
 
 const SMTP_CONNECTION_TIMEOUT_MS = 8000;
 const SMTP_SOCKET_TIMEOUT_MS = 12000;
@@ -103,39 +104,15 @@ export class EmailService {
     }
   }
 
-  static async sendVerificationEmail(to: string, token: string): Promise<void> {
-    const url = `${env.clientUrl}/auth/verify-email?token=${token}`;
-    await this.sendEmail(
-      to,
-      'Verify your CareerTrack account',
-      `<div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;color:#1f2937">
-        <h2 style="color:#2563eb">Welcome to CareerTrack!</h2>
-        <p>Click the button below to verify your email address.</p>
-        <p style="margin:28px 0">
-          <a href="${url}" style="display:inline-block;background:#2563eb;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600">Verify Email</a>
-        </p>
-        <p style="color:#6b7280;font-size:14px">Or copy this link: ${url}</p>
-      </div>`
-      ,
-      'account'
-    );
+  static async sendVerificationEmail(to: string, token: string, firstName?: string): Promise<void> {
+    const verifyUrl = `${env.clientUrl}/auth/verify-email?token=${token}`;
+    const { subject, html, fromCategory } = buildVerificationEmail({ firstName, verifyUrl });
+    await this.sendEmail(to, subject, html, fromCategory);
   }
 
-  static async sendPasswordResetEmail(to: string, token: string): Promise<void> {
-    const url = `${env.clientUrl}/auth/reset-password?token=${token}`;
-    await this.sendEmail(
-      to,
-      'Reset your CareerTrack password',
-      `<div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;color:#1f2937">
-        <h2 style="color:#2563eb">Reset your password</h2>
-        <p>Click the button below to reset your CareerTrack password. This link expires in 1 hour.</p>
-        <p style="margin:28px 0">
-          <a href="${url}" style="display:inline-block;background:#2563eb;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600">Reset Password</a>
-        </p>
-        <p style="color:#6b7280;font-size:14px">Or copy this link: ${url}</p>
-      </div>`
-      ,
-      'security'
-    );
+  static async sendPasswordResetEmail(to: string, token: string, firstName?: string): Promise<void> {
+    const resetUrl = `${env.clientUrl}/auth/reset-password?token=${token}`;
+    const { subject, html, fromCategory } = buildPasswordResetEmail({ firstName, resetUrl });
+    await this.sendEmail(to, subject, html, fromCategory);
   }
 }

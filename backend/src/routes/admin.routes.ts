@@ -14,6 +14,8 @@ import {
   listSavedJobs,
   updateApplication,
   updateCandidate,
+  listEmailPreviews,
+  getEmailPreview,
 } from '../modules/admin/admin.controller';
 
 const router = Router();
@@ -33,5 +35,7 @@ router.delete('/saved-jobs/:id', deleteSavedJob);
 router.get('/jobs', listJobs);
 router.get('/jobs/:id', getJob);
 router.get('/activity', listActivity);
+router.get('/email-previews', listEmailPreviews);
+router.get('/email-previews/:id', getEmailPreview);
 
 export default router;

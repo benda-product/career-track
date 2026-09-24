@@ -16,6 +16,11 @@ router.post(
   applicationInternalController.syncStageFromAts
 );
 router.post(
+  '/applications/recruiter-message',
+  requireInternalKey,
+  applicationInternalController.notifyRecruiterMessage
+);
+router.post(
   '/applications/from-ats-apply',
   requireInternalKey,
   applicationInternalController.createFromAtsApply

@@ -15,6 +15,7 @@ export type NotificationType =
   | 'resume_score'
   | 'interview_invite'
   | 'profile_suggestion'
+  | 'recruiter_message'
   | 'system';
 
 export interface JwtPayload {

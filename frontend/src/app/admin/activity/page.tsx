@@ -20,6 +20,7 @@ const KIND_LABELS: Record<string, string> = {
   resume_score: 'Resume',
   interview_invite: 'Interview',
   profile_suggestion: 'Profile',
+  recruiter_message: 'Recruiter message',
   system: 'System',
 };
 
