@@ -585,7 +585,8 @@ export class AuthService {
 
   private async resolveUserFromCentralPayload(payload: CentralAuthPayload) {
     const email = payload.email.toLowerCase().trim();
-    const isHubAdmin = payload.roles?.includes('ADMIN');
+    const isHubAdmin =
+      payload.roles?.includes('ADMIN') || payload.roles?.includes('MANAGER');
     let user = await userRepository.findByEmail(email);
 
     const firstName =
