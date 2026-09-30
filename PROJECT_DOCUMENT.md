@@ -10,15 +10,15 @@
 
 ## 1. Overview
 
-**Career Track** is an enterprise **candidate platform** for job seekers. It is explicitly **not** an ATS — recruiting and hiring workflows live in **Talent Desk**. Career Track gives candidates one place to manage their career: profile, resumes, job search, applications, skill assessments, training courses, and notifications.
+**Career Track** is an enterprise **candidate platform** for job seekers. It is explicitly **not** an ATS — recruiting and hiring workflows live in **Talent by Benda Infotech**. Career Track gives candidates one place to manage their career: profile, resumes, job search, applications, skill assessments, training courses, and notifications.
 
-It is a core product in the **Benda ecosystem**, integrated with Benda Infotech (SSO and courses), Resume AI, Talent Desk ATS, and SkillCheck.
+It is a core product in the **Benda ecosystem**, integrated with Benda Infotech (SSO and courses), Resume AI, Talent by Benda Infotech, and SkillCheck.
 
 ### Purpose
 
 - Provide job seekers a **unified workspace** for career growth and job hunting
 - **Proxy and orchestrate** Resume Builder, ATS, SkillCheck, and Benda courses behind one UI
-- **Sync** applications and profile data with Talent Desk talent pool
+- **Sync** applications and profile data with Talent by Benda Infotech talent pool
 - Support **Benda SSO** so one Benda account launches Career Track without re-registration
 
 ### Project structure
@@ -113,7 +113,7 @@ Integration logic lives in `backend/src/services/` (Resume Builder, ATS, SkillCh
 
 - `authProvider`: `local` | `benda_infotech`
 - `bendaLinked`: linked to Benda Infotech hub
-- **Recruiters are blocked** at Google login and Benda provision → redirect to `/auth/role-mismatch` (Talent Desk)
+- **Recruiters are blocked** at Google login and Benda provision → redirect to `/auth/role-mismatch` (Talent by Benda Infotech)
 
 Ecosystem role synced from Benda: `JOB_SEEKER`.
 
@@ -138,7 +138,7 @@ Ecosystem role synced from Benda: `JOB_SEEKER`.
 | `/auth/forgot-password` | Request password reset email |
 | `/auth/sso-login` | Central-auth SSO token exchange → JWT |
 | `/auth/benda-sso` | Token handoff from Benda hub |
-| `/auth/role-mismatch` | Recruiter blocked; links to Talent Desk |
+| `/auth/role-mismatch` | Recruiter blocked; links to Talent by Benda Infotech |
 | `/sso-login` | Alias → `/auth/sso-login` |
 
 **Backend auth capabilities:**
@@ -230,7 +230,7 @@ Proxied to Benda Infotech API (`:5004/api/courses`).
 
 ---
 
-### 4.8 Job Pipeline (Talent Desk proxy)
+### 4.8 Job Pipeline (Talent by Benda Infotech proxy)
 
 | Route | Feature |
 |-------|---------|
@@ -439,7 +439,7 @@ Real-time push via Socket.io (`notification`, `application_update` events).
 | Frontend links | `NEXT_PUBLIC_BENDA_URL` (default `:3004`) |
 | Firebase | Shared Benda Infotech Firebase project |
 
-### 7.2 Talent Desk (ATS)
+### 7.2 Talent by Benda Infotech
 
 | Integration | Details |
 |-------------|---------|
@@ -498,7 +498,7 @@ Real-time push via Socket.io (`notification`, `application_update` events).
 ### Role mismatch protection
 
 - Recruiter Benda accounts blocked from Career Track
-- Shown at `/auth/role-mismatch` with link to Talent Desk
+- Shown at `/auth/role-mismatch` with link to Talent by Benda Infotech
 
 ---
 
@@ -555,7 +555,7 @@ docker compose --profile career-track up
 | Career Track frontend | **3003** |
 | Career Track backend | **5003** |
 | Resume AI | 3001 / 5001 |
-| Talent Desk ATS | 3002 / 5002 |
+| Talent by Benda Infotech | 3002 / 5002 |
 | Benda Infotech | 3004 / 5004 |
 | SkillCheck | 3005 / 5005 |
 | MongoDB | 27017 |
@@ -565,7 +565,7 @@ docker compose --profile career-track up
 Full functionality requires:
 - Benda Infotech (SSO, courses)
 - Resume Builder (resumes)
-- Talent Desk ATS (jobs, applications)
+- Talent by Benda Infotech (jobs, applications)
 - SkillCheck (assessments)
 
 Services return explicit 502/503 errors when dependencies are offline. `INTERNAL_SYNC_KEY` must match across all services.
@@ -585,7 +585,7 @@ Services return explicit 502/503 errors when dependencies are offline. `INTERNAL
 | `CLIENT_URL` | CORS origin (`http://localhost:3003`) |
 | `RESUME_BUILDER_API_URL` | Resume AI API |
 | `RESUME_BUILDER_CLIENT_URL` | Resume AI UI |
-| `ATS_API_URL` / `ATS_BACKEND_URL` | Talent Desk API |
+| `ATS_API_URL` / `ATS_BACKEND_URL` | Talent by Benda Infotech API |
 | `SKILL_TEST_API_URL` | SkillCheck API |
 | `SKILL_TEST_CLIENT_URL` | SkillCheck UI |
 | `BENDA_INFOTECH_API_URL` | Benda courses API |
@@ -691,7 +691,7 @@ Services return explicit 502/503 errors when dependencies are offline. `INTERNAL
 | Term | Meaning |
 |------|---------|
 | **Career Track** | Candidate platform (this product) |
-| **Talent Desk** | Benda ATS for recruiters (separate product) |
+| **Talent by Benda Infotech** | Benda ATS for recruiters (separate product) |
 | **Resume AI** | Resume Builder product |
 | **SkillCheck** | Skill assessment platform (internal ID `HORG`) |
 | **Job Tracker** | Kanban application board |
@@ -709,4 +709,4 @@ Services return explicit 502/503 errors when dependencies are offline. `INTERNAL
 
 ---
 
-*For Benda ecosystem overview, see `benda-infotech/PROJECT_DOCUMENT.md`. For recruiter/hiring features, see `ats/PROJECT_DOCUMENT.md` (Talent Desk).*
+*For Benda ecosystem overview, see `benda-infotech/PROJECT_DOCUMENT.md`. For recruiter/hiring features, see `ats/PROJECT_DOCUMENT.md` (Talent by Benda Infotech).*

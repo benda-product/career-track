@@ -8,7 +8,7 @@ import { SupportFlowInfographic } from '@/components/marketing/infographics';
 const FAQS = [
   {
     q: 'Who is CareerTrack for?',
-    a: 'Job seekers who need a single place for resumes, skill proof, job matches, and application tracking. Recruiters and hiring teams should use Talent Desk instead.',
+    a: 'Job seekers who need a single place for resumes, skill proof, job matches, and application tracking. Recruiters and hiring teams should use Talent by Benda Infotech instead.',
   },
   {
     q: 'Can I use the same Google account as Benda Infotech?',
@@ -24,7 +24,7 @@ const FAQS = [
   },
   {
     q: 'I signed in but see a role mismatch.',
-    a: 'CareerTrack expects a job-seeker role. If your Hub account is recruiter-focused, use Talent Desk for hiring workflows, or contact support if your role was set incorrectly.',
+    a: 'CareerTrack expects a job-seeker role. If your Hub account is recruiter-focused, use Talent by Benda Infotech for hiring workflows, or contact support if your role was set incorrectly.',
   },
   {
     q: 'How do I reset my password?',
@@ -101,7 +101,7 @@ export default function SupportPage() {
           <div className="mt-10 flex items-start gap-3 border border-[var(--ct-line)] bg-[var(--ct-tint)] px-4 py-4 text-sm text-[var(--ct-ink)]">
             <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-[var(--ct-green)]" />
             <p>
-              Tip: if Google sign-in fails with a role message, you may be on a recruiter Hub account — Talent Desk is the
+              Tip: if Google sign-in fails with a role message, you may be on a recruiter Hub account — Talent by Benda Infotech is the
               correct product for hiring teams.
             </p>
           </div>

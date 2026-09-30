@@ -219,7 +219,7 @@ export class JobsService {
     if (!atsJobMeta?.recruiterId) {
       throw new ApiError(
         422,
-        'This job cannot accept applications right now. Confirm the job is published in Talent Desk.'
+        'This job cannot accept applications right now. Confirm the job is published in Talent by Benda Infotech.'
       );
     }
 
@@ -325,7 +325,7 @@ export class JobsService {
     return recommendationService.getRecommendedJobs(userId, page, limit);
   }
 
-  /** Career Track job catalog from Talent Desk, including the upstream total when present. */
+  /** Career Track job catalog from Talent by Benda Infotech, including the upstream total when present. */
   async searchCatalog(filters: JobSearchFilters): Promise<{ jobs: NormalizedJob[]; total: number | null }> {
     const result = await atsService.searchJobs(toAtsQuery(filters) as JobSearchFilters);
     const jobs = extractJobsList(result).map(withTalentDeskApplyUrl);

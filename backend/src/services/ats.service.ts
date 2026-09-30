@@ -77,7 +77,7 @@ function toApiError(error: unknown): ApiError {
     const message =
       (error.response?.data as { message?: string } | undefined)?.message ||
       (isTransientAxiosError(error)
-        ? 'Talent Desk is temporarily unavailable. Please try again.'
+        ? 'Talent by Benda Infotech is temporarily unavailable. Please try again.'
         : 'ATS service unavailable');
     return new ApiError(status, message);
   }

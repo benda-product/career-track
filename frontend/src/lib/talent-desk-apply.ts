@@ -1,5 +1,5 @@
 const DEFAULT_LOCAL_TALENT_DESK_URL = 'http://localhost:3002';
-const DEFAULT_PROD_TALENT_DESK_URL = 'https://talentdesk.bendainfotech.com';
+const DEFAULT_PROD_TALENT_DESK_URL = 'https://talent.bendainfotech.com';
 
 function isLocalHost(hostname: string): boolean {
   return hostname === 'localhost' || hostname === '127.0.0.1';

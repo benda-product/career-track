@@ -158,7 +158,7 @@ export default function FeaturesPage() {
             <div className="flex items-start gap-3">
               <Briefcase className="mt-0.5 h-4 w-4 shrink-0 text-[var(--ct-green)]" />
               <p>
-                Recruiters should use <span className="font-semibold text-[var(--ct-ink)]">Talent Desk</span>. CareerTrack
+                Recruiters should use <span className="font-semibold text-[var(--ct-ink)]">Talent by Benda Infotech</span>. CareerTrack
                 is purpose-built for job seekers.
               </p>
             </div>

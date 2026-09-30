@@ -29,7 +29,7 @@ export function formatAtsStageLabel(atsStage?: string | null): string | null {
   );
 }
 
-/** Prefer Talent Desk stage label when synced; otherwise Career Track stage. */
+/** Prefer Talent by Benda Infotech stage label when synced; otherwise Career Track stage. */
 export function getApplicationStatusLabel(
   app: Pick<Application, 'stage' | 'atsStage'> | { stage: ApplicationStage; atsStage?: string }
 ): string {

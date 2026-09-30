@@ -24,8 +24,8 @@ const ADMIN_CONSOLES = [
   },
   {
     id: "ats",
-    label: "Talent Desk Admin",
-    shortLabel: "Talent Desk",
+    label: "Talent by Benda Infotech Admin",
+    shortLabel: "Talent by Benda Infotech",
     description: "ATS jobs, recruiters & hiring",
     logo: "/images/logos/talent-desk.png",
     href: `${BENDA_HUB_URL}/admin/launch?product=ATS&redirect=${encodeURIComponent("/admin")}`,

@@ -37,7 +37,7 @@ export default function AdminJobsPage() {
     <div className="space-y-6">
       <PageHeader
         title="Jobs"
-        description="Published Career Track jobs from the Talent Desk catalog."
+        description="Published Career Track jobs from the Talent by Benda Infotech catalog."
         action={
           <AdminSearchForm
             key={q}

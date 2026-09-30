@@ -107,7 +107,7 @@ export default function CareerTrackAdminPage() {
           title="Jobs"
           value={data.counts.jobs ?? '—'}
           icon={FileText}
-          description={data.jobsUnavailable ? 'Catalog unavailable' : 'Talent Desk catalog'}
+          description={data.jobsUnavailable ? 'Catalog unavailable' : 'Talent by Benda Infotech catalog'}
         />
       </div>
 

@@ -51,7 +51,7 @@ function JobDetailContent() {
       <div className="mx-auto max-w-3xl space-y-4 rounded-lg border border-rose-200 bg-rose-50 p-6 text-sm text-rose-900">
         <p className="font-semibold">Unable to load this job right now.</p>
         <p className="text-rose-800">
-          {error instanceof Error ? error.message : 'The jobs service may be unavailable. Check that Career Track and Talent Desk backends are running.'}
+          {error instanceof Error ? error.message : 'The jobs service may be unavailable. Check that Career Track and Talent by Benda Infotech backends are running.'}
         </p>
         <Button type="button" variant="outline" onClick={() => refetch()}>
           Try again

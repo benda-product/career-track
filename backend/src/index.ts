@@ -13,17 +13,17 @@ const start = async () => {
   await connectDatabase();
 
   const atsBases = atsApiBases();
-  logger.info('Talent Desk API bases configured', { bases: atsBases });
+  logger.info('Talent by Benda Infotech API bases configured', { bases: atsBases });
   probeAtsConnectivity()
     .then((result) => {
       if (result.ok) {
-        logger.info('Talent Desk connectivity OK', { base: result.base });
+        logger.info('Talent by Benda Infotech connectivity OK', { base: result.base });
       } else {
-        logger.warn('Talent Desk connectivity check failed on startup', { bases: result.bases });
+        logger.warn('Talent by Benda Infotech connectivity check failed on startup', { bases: result.bases });
       }
     })
     .catch((error) => {
-      logger.warn('Talent Desk connectivity check errored', { error });
+      logger.warn('Talent by Benda Infotech connectivity check errored', { error });
     });
 
   const server = http.createServer(app);

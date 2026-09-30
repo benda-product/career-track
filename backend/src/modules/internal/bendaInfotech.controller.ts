@@ -167,7 +167,7 @@ export class BendaInfotechController {
     if (accountType === 'recruiter') {
       throw new ApiError(
         403,
-        'Career Track is for Job Seekers. Recruiter accounts should use Talent Desk.'
+        'Career Track is for Job Seekers. Recruiter accounts should use Talent by Benda Infotech.'
       );
     }
 

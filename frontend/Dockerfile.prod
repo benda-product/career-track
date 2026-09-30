@@ -11,7 +11,7 @@ COPY . .
 ARG NEXT_PUBLIC_API_URL=https://careertrack.bendainfotech.com/api/v1
 ARG NEXT_PUBLIC_SOCKET_URL=https://careertrack.bendainfotech.com
 ARG NEXT_PUBLIC_SKILL_TEST_URL=https://skillcheck.bendainfotech.com
-ARG NEXT_PUBLIC_TALENT_DESK_URL=https://talentdesk.bendainfotech.com
+ARG NEXT_PUBLIC_TALENT_DESK_URL=https://talent.bendainfotech.com
 ARG NEXT_PUBLIC_BENDA_URL=https://demo.bendainfotech.com
 ARG BACKEND_URL=http://career-track-backend:5003
 ARG NEXT_PUBLIC_FIREBASE_API_KEY=AIzaSyDqjkxgdNmFKGy90mo-2oEhNfD2JTgZu4E

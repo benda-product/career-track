@@ -100,11 +100,11 @@ function JobsContent() {
 
       {isError ? (
         <div className="rounded-2xl border border-rose-100 bg-rose-50/50 p-4 text-sm text-rose-800">
-          <p className="font-semibold">Unable to load jobs from Talent Desk.</p>
+          <p className="font-semibold">Unable to load jobs from Talent by Benda Infotech.</p>
           <p className="mt-1 text-xs text-rose-700">
             {getApiErrorMessage(
               error,
-              'Please confirm Talent Desk and Career Track backends are running, then retry.'
+              'Please confirm Talent by Benda Infotech and Career Track backends are running, then retry.'
             )}
           </p>
           <Button type="button" size="sm" variant="outline" className="mt-3" onClick={() => refetch()}>

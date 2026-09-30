@@ -72,11 +72,11 @@ export class ApplicationsController {
       throw new ApiError(404, 'Application not found');
     }
 
-    // Applications linked to Talent Desk (ATS) are recruiter-owned; candidates track only.
+    // Applications linked to Talent by Benda Infotech are recruiter-owned; candidates track only.
     if (application.atsApplicationId) {
       throw new ApiError(
         403,
-        'Application status is managed by the recruiter and syncs automatically from Talent Desk'
+        'Application status is managed by the recruiter and syncs automatically from Talent by Benda Infotech'
       );
     }
 

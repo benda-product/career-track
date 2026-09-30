@@ -22,7 +22,7 @@ export interface IApplication extends Document {
   recruiterFeedback?: string;
   notes?: string;
   atsApplicationId?: string;
-  /** Fine-grained Talent Desk pipeline stage (source of truth when linked). */
+  /** Fine-grained Talent by Benda Infotech pipeline stage (source of truth when linked). */
   atsStage?: string;
   resumeId?: string;
   resumeTitle?: string;

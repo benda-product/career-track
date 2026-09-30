@@ -26,7 +26,7 @@ function RoleMismatchPageContent() {
           <CardDescription className="text-base leading-relaxed">
             {reason === 'recruiter'
               ? 'Career Track is built for job seekers — learning, applications, and career growth. Your Benda account is registered as a Recruiter.'
-              : 'This area is for job seekers. Recruiter accounts should use Talent Desk for hiring workflows.'}
+              : 'This area is for job seekers. Recruiter accounts should use Talent by Benda Infotech for hiring workflows.'}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -34,7 +34,7 @@ function RoleMismatchPageContent() {
             href={`${TALENT_DESK_URL}/recruiter`}
             className={cn(buttonVariants({ variant: 'default', size: 'lg' }), 'w-full')}
           >
-            Open Talent Desk
+            Open Talent by Benda Infotech
           </a>
           <a
             href={BENDA_URL}

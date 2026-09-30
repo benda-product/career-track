@@ -81,7 +81,7 @@ function LoginPageContent() {
       subtitle={
         fromApply
           ? 'Use the same email you applied with. You will complete your profile next, then open your application tracker.'
-          : 'Job seekers only — use Google or email. Recruiters should use Talent Desk.'
+          : 'Job seekers only — use Google or email. Recruiters should use Talent by Benda Infotech.'
       }
     >
       <div className="space-y-5">
