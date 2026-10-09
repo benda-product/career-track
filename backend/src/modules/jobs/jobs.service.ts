@@ -23,6 +23,18 @@ import {
 import { buildTalentDeskApplyUrl } from '../../utils/talentDeskApply';
 import { ApiError } from '../../utils/apiError';
 
+function isPlaceholderNamePart(value: string) {
+  const text = value.trim().toLowerCase();
+  return !text || text === 'user' || text === 'account' || text === 'applicant';
+}
+
+function candidateDisplayName(user: { firstName?: string; lastName?: string; email: string }) {
+  const first = String(user.firstName || '').trim();
+  const last = String(user.lastName || '').trim();
+  const parts = [first, last].filter((part) => part && !isPlaceholderNamePart(part));
+  return parts.join(' ').trim() || user.email.split('@')[0] || user.email;
+}
+
 let skillCatalogCache: SkillCatalogItem[] | null = null;
 let skillCatalogCacheAt = 0;
 const SKILL_CATALOG_TTL_MS = 5 * 60 * 1000;
@@ -225,7 +237,7 @@ export class JobsService {
 
     await syncCandidateToTalentPool(userId);
 
-    const candidateName = `${user.firstName} ${user.lastName}`.trim() || user.email;
+    const candidateName = candidateDisplayName(user);
     const { resumeId: resolvedResumeId, resumeTitle } = await this.resolveResumeForApply(
       user.email,
       resumeId,

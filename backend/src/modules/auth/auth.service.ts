@@ -459,11 +459,26 @@ export class AuthService {
       await profileRepository.create(user._id.toString());
       void syncCandidateToTalentPool(user._id.toString());
     } else {
+      const nextFirst = dto.firstName.trim();
+      const nextLast = dto.lastName.trim();
+      const storedName = `${user.firstName || ''} ${user.lastName || ''}`.trim().toLowerCase();
+      const storedIsPlaceholder =
+        !user.firstName?.trim() ||
+        user.firstName.trim().toLowerCase() === 'user' ||
+        storedName === 'user user' ||
+        storedName === 'user account';
+      const incomingIsReal = Boolean(nextFirst) && nextFirst.toLowerCase() !== 'user';
       await userRepository.update(user._id.toString(), {
         lastLogin: new Date(),
         bendaLinked: user.bendaLinked || !dto.pendingPasswordSetup,
         isEmailVerified: user.isEmailVerified || true,
         ...(dto.photoUrl && !user.avatar ? { avatar: dto.photoUrl } : {}),
+        ...(storedIsPlaceholder && incomingIsReal
+          ? {
+              firstName: nextFirst,
+              lastName: nextLast.toLowerCase() === 'user' || nextLast.toLowerCase() === 'account' ? '' : nextLast,
+            }
+          : {}),
       });
     }
 

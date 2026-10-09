@@ -73,22 +73,43 @@ export async function verifyEcosystemCredentials(
   return null;
 }
 
+function isPlaceholderNamePart(value: string) {
+  const text = value.trim().toLowerCase();
+  return !text || text === 'user' || text === 'account' || text === 'applicant';
+}
+
 function splitDisplayName(
-  email: string,
+  emailOrName: string,
   profile?: { name?: string; firstName?: string; lastName?: string },
 ) {
-  const fromName = String(profile?.name || '').trim();
-  if (fromName) {
+  const raw = String(emailOrName || '').trim();
+  const profileName = String(profile?.name || '').trim();
+  const directName = raw.includes('@') ? '' : raw;
+  const fromName = profileName || directName;
+
+  if (fromName && !isPlaceholderNamePart(fromName)) {
     const parts = fromName.split(/\s+/).filter(Boolean);
     return {
-      firstName: parts[0] || 'User',
-      lastName: parts.slice(1).join(' ') || parts[0] || 'User',
+      firstName: parts[0],
+      lastName: parts.slice(1).join(' '),
     };
   }
 
-  const firstName = String(profile?.firstName || '').trim() || 'User';
-  const lastName = String(profile?.lastName || '').trim() || firstName;
-  return { firstName, lastName };
+  const firstName = String(profile?.firstName || '').trim();
+  const lastName = String(profile?.lastName || '').trim();
+  if (firstName && !isPlaceholderNamePart(firstName)) {
+    return {
+      firstName,
+      lastName: isPlaceholderNamePart(lastName) ? '' : lastName,
+    };
+  }
+
+  if (raw.includes('@')) {
+    const localPart = raw.split('@')[0]?.trim();
+    if (localPart) return { firstName: localPart, lastName: '' };
+  }
+
+  return { firstName: fromName || 'Applicant', lastName: '' };
 }
 
 export { splitDisplayName };

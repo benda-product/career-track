@@ -247,6 +247,7 @@ export const planService = {
       {
         name: `${user.firstName} ${user.lastName}`.trim() || user.email,
         email: user.email,
+        customerId: String(user._id),
       },
       {
         invoiceNumber: invoice.invoiceNumber,
