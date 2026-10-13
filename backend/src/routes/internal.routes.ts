@@ -65,5 +65,10 @@ router.get(
   requireInternalKey,
   bendaInfotechController.downloadInvoicePdf
 );
+router.post(
+  '/account-deactivate',
+  requireInternalKey,
+  bendaInfotechController.deactivateAccount
+);
 
 export default router;

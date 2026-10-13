@@ -218,6 +218,29 @@ export class BendaInfotechController {
       product: 'career_track',
     });
   });
+
+  /** Remove the Career Track user record. Applications and activity stay in place. */
+  deactivateAccount = asyncHandler(async (req: Request, res: Response) => {
+    const email = String(req.body?.email || '')
+      .toLowerCase()
+      .trim();
+    if (!email) throw new ApiError(400, 'email is required');
+
+    const user = await User.findOne({ email }).select('+password');
+    if (!user) {
+      sendSuccess(res, { status: 'not_found', product: 'career_track' });
+      return;
+    }
+
+    const userId = user._id.toString();
+    await User.deleteOne({ _id: user._id });
+
+    sendSuccess(res, {
+      status: 'deleted',
+      product: 'career_track',
+      userId,
+    });
+  });
 }
 
 export const bendaInfotechController = new BendaInfotechController();

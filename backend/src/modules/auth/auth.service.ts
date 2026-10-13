@@ -1,4 +1,6 @@
 import { userRepository } from '../../repositories/user.repository';
+import { User, type IUser } from './user.model';
+import { resolveInternalSyncKey } from '../../utils/assertSecurityEnv';
 import { profileRepository } from '../../repositories/profile.repository';
 import crypto from 'crypto';
 import {
@@ -142,7 +144,8 @@ export class AuthService {
   }
 
   async register(dto: RegisterDto) {
-    const existing = await userRepository.findByEmail(dto.email);
+    const found = await userRepository.findByEmail(dto.email);
+    const existing = await dropCareerTrackUserIfHubDeleted(found);
     if (existing) {
       if (existing.passwordSetupRequired && !existing.bendaLinked) {
         throw new ApiError(
@@ -309,7 +312,7 @@ export class AuthService {
   async refreshToken(token: string) {
     const payload = verifyRefreshToken(token);
     const user = await userRepository.findById(payload.userId);
-    if (!user || !user.refreshTokens.includes(token)) {
+    if (!user || !user.isActive || !user.refreshTokens.includes(token)) {
       throw new ApiError(401, 'Invalid refresh token');
     }
 
@@ -650,6 +653,43 @@ export class AuthService {
 
     return user;
   }
+}
+
+async function hubAccountExists(email: string) {
+  const bases = [
+    ...new Set(
+      [process.env.BENDA_API_URL, process.env.BENDA_INFOTECH_API_URL, 'http://localhost:5004/api']
+        .map((value) => String(value || '').replace(/\/$/, ''))
+        .filter(Boolean)
+    ),
+  ];
+  for (const base of bases) {
+    try {
+      const response = await fetch(
+        `${base}/internal/account-exists?email=${encodeURIComponent(email)}`,
+        {
+          headers: { 'x-benda-key': resolveInternalSyncKey() },
+          signal: AbortSignal.timeout(2500),
+        }
+      );
+      if (!response.ok) continue;
+      const payload = (await response.json().catch(() => ({}))) as { data?: { exists?: boolean } };
+      return Boolean(payload?.data?.exists);
+    } catch {
+      continue;
+    }
+  }
+  return null;
+}
+
+async function dropCareerTrackUserIfHubDeleted(user: IUser | null) {
+  if (!user) return user;
+  const email = String(user.email || '').toLowerCase().trim();
+  if (!email) return user;
+  const onHub = await hubAccountExists(email);
+  if (onHub !== false) return user;
+  await User.deleteOne({ _id: user._id });
+  return null;
 }
 
 export const authService = new AuthService();
