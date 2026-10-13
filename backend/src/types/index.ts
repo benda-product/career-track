@@ -1,4 +1,4 @@
-export type UserRole = 'candidate' | 'admin';
+export type UserRole = 'candidate' | 'admin' | 'support';
 
 export type ApplicationStage =
   | 'applied'

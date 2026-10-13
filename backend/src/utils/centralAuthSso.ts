@@ -14,6 +14,13 @@ export interface CentralAuthPayload {
   role?: string;
   roles?: string[];
   products?: string[];
+  supportAccess?: {
+    CAREER_TRACK?: string;
+  } | null;
+  applicationRoles?: {
+    configured?: boolean;
+    CAREER_TRACK?: string;
+  } | null;
   organizationId?: string | null;
   companyName?: string | null;
 }

@@ -91,6 +91,11 @@ export class AuthController {
     sendSuccess(res, result);
   });
 
+  supportAccountLookup = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const result = await authService.lookupSupportAccount(String(req.query.email || ''));
+    sendSuccess(res, result);
+  });
+
   completeApplicantAccount = asyncHandler(async (req: AuthRequest, res: Response) => {
     const result = await authService.completeApplicantAccount(req.body);
     attachAuthCookies(req, res, result);

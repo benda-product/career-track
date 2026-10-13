@@ -21,6 +21,13 @@ export const authenticate = (req: AuthRequest, _res: Response, next: NextFunctio
   try {
     const payload = verifyAccessToken(token);
     req.user = payload;
+    if (payload.role === 'support') {
+      const path = req.originalUrl || '';
+      const allowed = path.includes('/auth/') || path.includes('/support/');
+      if (!allowed) {
+        return next(new ApiError(403, 'Career Track support access is limited to authorized support functions.'));
+      }
+    }
     next();
   } catch {
     next(new ApiError(401, 'Invalid or expired token'));

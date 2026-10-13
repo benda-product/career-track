@@ -316,7 +316,11 @@ export class AuthService {
       throw new ApiError(401, 'Invalid refresh token');
     }
 
-    const tokens = this.buildTokens(user);
+    const tokens = this.buildTokens({
+      _id: user._id,
+      email: user.email,
+      role: payload.role === 'support' ? 'support' : user.role,
+    });
     await userRepository.removeRefreshToken(user._id.toString(), token);
     await userRepository.addRefreshToken(user._id.toString(), tokens.refreshToken);
 
@@ -524,10 +528,16 @@ export class AuthService {
     const user = await this.resolveUserFromCentralPayload(payload);
     const tokens = this.buildTokens(user);
     await userRepository.addRefreshToken(user._id.toString(), tokens.refreshToken);
+    const safeRedirect =
+      user.role === 'support'
+        ? '/support-desk'
+        : user.role === 'admin' && (!redirect || redirect === '/dashboard')
+          ? '/admin'
+          : redirect;
 
     return {
       success: true,
-      redirect,
+      redirect: safeRedirect,
       user: {
         id: user._id,
         email: user.email,
@@ -601,16 +611,126 @@ export class AuthService {
     };
   }
 
+  async lookupSupportAccount(email: string) {
+    const normalized = String(email || '').toLowerCase().trim();
+    if (!normalized) {
+      throw new ApiError(400, 'Email is required.');
+    }
+    const user = await userRepository.findByEmail(normalized);
+    if (!user || user.role === 'support') {
+      return { found: false };
+    }
+    return {
+      found: true,
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      role: user.role,
+      isActive: user.isActive,
+      isEmailVerified: user.isEmailVerified,
+      lastLogin: user.lastLogin || null,
+    };
+  }
+
+  private async resolveSupportUser(email: string, firstName: string, lastName: string) {
+    const existing = await userRepository.findByEmail(email);
+    if (!existing) {
+      return userRepository.create({
+        email,
+        password: crypto.randomBytes(32).toString('hex'),
+        firstName,
+        lastName,
+        role: 'support',
+        isEmailVerified: true,
+        authProvider: 'benda_infotech',
+        bendaLinked: true,
+        isActive: true,
+      });
+    }
+
+    if (!existing.isActive) {
+      throw new ApiError(403, 'This support account is deactivated.');
+    }
+
+    // The stored customer role stays as it is. This sign-in is only a support session.
+    await userRepository.update(existing._id.toString(), { lastLogin: new Date() });
+    return {
+      _id: existing._id,
+      email: existing.email,
+      firstName: existing.firstName || firstName,
+      lastName: existing.lastName || lastName,
+      role: 'support' as const,
+      isEmailVerified: true,
+    };
+  }
+
+  private async resolveAssignedApplicationRole(
+    email: string,
+    firstName: string,
+    lastName: string,
+    role: 'candidate' | 'admin' | 'support'
+  ) {
+    let user = await userRepository.findByEmail(email);
+    if (!user) {
+      user = await userRepository.create({
+        email,
+        password: crypto.randomBytes(32).toString('hex'),
+        firstName,
+        lastName,
+        role,
+        isEmailVerified: true,
+        authProvider: 'benda_infotech',
+      });
+      await profileRepository.create(user._id.toString());
+      if (role === 'candidate') void syncCandidateToTalentPool(user._id.toString());
+      return user;
+    }
+    if (!user.isActive) {
+      throw new ApiError(403, 'This account is deactivated.');
+    }
+    const updates: Record<string, unknown> = { lastLogin: new Date(), bendaLinked: true };
+    if (user.role !== role) updates.role = role;
+    await userRepository.update(user._id.toString(), updates);
+    user.role = role;
+    if (role === 'candidate') void syncCandidateToTalentPool(user._id.toString());
+    return user;
+  }
+
   private async resolveUserFromCentralPayload(payload: CentralAuthPayload) {
     const email = payload.email.toLowerCase().trim();
-    const isHubAdmin =
-      payload.roles?.includes('ADMIN') || payload.roles?.includes('MANAGER');
-    let user = await userRepository.findByEmail(email);
-
+    const hubRoles = payload.roles || [];
+    const supportOnly =
+      hubRoles.includes('SUPPORT') &&
+      !hubRoles.includes('ADMIN') &&
+      !hubRoles.includes('MANAGER') &&
+      !hubRoles.includes('RECRUITER') &&
+      !hubRoles.includes('BUSINESS');
     const firstName =
       payload.firstName || payload.name?.split(' ')[0] || 'User';
     const lastName =
       payload.lastName || payload.name?.split(' ').slice(1).join(' ') || '';
+
+    if (payload.applicationRoles?.configured) {
+      const assigned = payload.applicationRoles.CAREER_TRACK || 'none';
+      if (assigned === 'none') {
+        throw new ApiError(403, 'Career Track access is not assigned.');
+      }
+      if (assigned !== 'candidate' && assigned !== 'admin' && assigned !== 'support') {
+        throw new ApiError(403, 'This Career Track role is not available.');
+      }
+      return this.resolveAssignedApplicationRole(email, firstName, lastName || 'User', assigned);
+    }
+
+    if (supportOnly) {
+      if (payload.supportAccess?.CAREER_TRACK !== 'support') {
+        throw new ApiError(403, 'Career Track support access is not assigned.');
+      }
+      return this.resolveSupportUser(email, firstName, lastName || 'Support');
+    }
+
+    const isHubAdmin =
+      payload.roles?.includes('ADMIN') || payload.roles?.includes('MANAGER');
+    let user = await userRepository.findByEmail(email);
 
     if (!user) {
       user = await userRepository.create({

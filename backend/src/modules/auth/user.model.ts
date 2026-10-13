@@ -37,7 +37,7 @@ const userSchema = new Schema<IUser>(
     password: { type: String, required: true, minlength: 8, select: false },
     firstName: { type: String, required: true, trim: true },
     lastName: { type: String, required: true, trim: true },
-    role: { type: String, enum: ['candidate', 'admin'], default: 'candidate' },
+    role: { type: String, enum: ['candidate', 'admin', 'support'], default: 'candidate' },
     avatar: String,
     isEmailVerified: { type: Boolean, default: false },
     emailVerificationToken: String,

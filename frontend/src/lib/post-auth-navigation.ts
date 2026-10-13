@@ -3,6 +3,7 @@ import { profileService } from '@/services/profile.service';
 
 export function resolveWorkspacePath(role: string | undefined, redirectPath = '/dashboard') {
   const safeRedirect = redirectPath.startsWith('/') ? redirectPath : '/dashboard';
+  if (role === 'support') return '/support-desk';
   if (role === 'admin' && safeRedirect === '/dashboard') return '/admin';
   return safeRedirect;
 }
