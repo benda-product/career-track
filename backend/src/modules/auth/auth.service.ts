@@ -710,7 +710,10 @@ export class AuthService {
     const lastName =
       payload.lastName || payload.name?.split(' ').slice(1).join(' ') || '';
 
-    if (payload.applicationRoles?.configured) {
+    const isHubAdmin =
+      hubRoles.includes('ADMIN') || hubRoles.includes('MANAGER');
+
+    if (!isHubAdmin && payload.applicationRoles?.configured) {
       const assigned = payload.applicationRoles.CAREER_TRACK || 'none';
       if (assigned === 'none') {
         throw new ApiError(403, 'Career Track access is not assigned.');
@@ -728,8 +731,6 @@ export class AuthService {
       return this.resolveSupportUser(email, firstName, lastName || 'Support');
     }
 
-    const isHubAdmin =
-      payload.roles?.includes('ADMIN') || payload.roles?.includes('MANAGER');
     let user = await userRepository.findByEmail(email);
 
     if (!user) {
