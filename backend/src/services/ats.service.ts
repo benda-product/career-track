@@ -27,6 +27,10 @@ function isLocalhostBase(base: string): boolean {
   return /^https?:\/\/(localhost|127\.0\.0\.1)(:|\/|$)/i.test(base);
 }
 
+function isDockerOnlyBase(base: string): boolean {
+  return /\/\/(ats-backend|host\.docker\.internal)(:|\/|$)/i.test(base);
+}
+
 export function atsApiBases(): string[] {
   const publicBase = env.ats.publicApiUrl
     ? normalizeBaseUrl(env.ats.publicApiUrl)
@@ -46,7 +50,7 @@ export function atsApiBases(): string[] {
   const ordered =
     env.nodeEnv === 'production' && publicBase
       ? [publicBase, ...internalBases, ...devBases]
-      : [...internalBases, publicBase, ...devBases];
+      : [...devBases, ...internalBases, publicBase];
 
   return ordered
     .filter(Boolean)
@@ -127,14 +131,16 @@ class AtsService {
     let lastError: unknown;
 
     for (const base of bases) {
-      for (let attempt = 1; attempt <= 2; attempt += 1) {
+      const dockerOnly = env.nodeEnv !== 'production' && isDockerOnlyBase(base);
+      const attempts = dockerOnly ? 1 : 2;
+      for (let attempt = 1; attempt <= attempts; attempt += 1) {
         try {
           const response = await axios.request<T>({
             method,
             url: `${base}${url}`,
             data,
             params,
-            timeout: 30000,
+            timeout: dockerOnly ? 2500 : 30000,
             headers: {
               'Content-Type': 'application/json',
               ...(extraConfig?.headers || {}),

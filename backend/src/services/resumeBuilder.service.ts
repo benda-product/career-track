@@ -22,41 +22,86 @@ export interface ResumeAtsScore {
   parseConfidence?: number;
 }
 
+function resumeApiBases(): string[] {
+  const configured = String(env.resumeBuilder.apiUrl || '').replace(/\/$/, '');
+  const local = 'http://localhost:5001/api/v1';
+  const ordered =
+    env.nodeEnv === 'production' ? [configured] : [local, configured, 'http://127.0.0.1:5001/api/v1'];
+  return ordered.filter(Boolean).filter((base, index, all) => all.indexOf(base) === index);
+}
+
+function isUnreachable(error: unknown): boolean {
+  if (!axios.isAxiosError(error) || error.response) return false;
+  return (
+    error.code === 'ENOTFOUND' ||
+    error.code === 'ECONNREFUSED' ||
+    error.code === 'ECONNABORTED' ||
+    error.code === 'ETIMEDOUT' ||
+    error.code === 'ERR_NETWORK'
+  );
+}
+
 class ResumeBuilderService {
   private client: AxiosInstance;
 
   constructor() {
     this.client = axios.create({
-      baseURL: env.resumeBuilder.apiUrl,
+      baseURL: resumeApiBases()[0],
       timeout: 60000,
-      headers: {
-        'Content-Type': 'application/json',
-        'x-benda-key': env.internalSyncKey,
-        'x-benda-internal-key': env.internalSyncKey,
-      },
+      headers: this.headers(),
     });
   }
 
+  private headers() {
+    return {
+      'Content-Type': 'application/json',
+      'x-benda-key': env.internalSyncKey,
+      'x-benda-internal-key': env.internalSyncKey,
+    };
+  }
+
   private async request<T>(method: string, url: string, data?: unknown): Promise<T> {
-    try {
-      const response = await this.client.request<ResumeBuilderEnvelope<T>>({ method, url, data });
-      return response.data.data;
-    } catch (error) {
-      logger.error('Resume Builder API error', { url, error });
-      if (axios.isAxiosError(error)) {
-        const isDown = error.code === 'ECONNREFUSED' || error.code === 'ENOTFOUND';
-        const isAuthError = error.response?.status === 401;
-        throw new ApiError(
-          error.response?.status || 502,
-          isDown
-            ? 'Resume Builder is not running. Start it on port 5001 (resume-builder/backend).'
-            : isAuthError
-              ? 'Resume Builder sync key mismatch. Ensure INTERNAL_SYNC_KEY matches on ports 5001 and 5003.'
-              : error.response?.data?.message || 'Resume Builder service unavailable'
-        );
+    const bases = resumeApiBases();
+    let lastError: unknown;
+
+    for (const base of bases) {
+      try {
+        const response = await axios.request<ResumeBuilderEnvelope<T>>({
+          method,
+          url: `${base}${url}`,
+          data,
+          timeout: /resume-backend|host\.docker\.internal/i.test(base) ? 2500 : 60000,
+          headers: this.headers(),
+        });
+        return response.data.data;
+      } catch (error) {
+        lastError = error;
+        logger.warn('Resume Builder API request failed', {
+          base,
+          url,
+          code: axios.isAxiosError(error) ? error.code : undefined,
+          status: axios.isAxiosError(error) ? error.response?.status : undefined,
+        });
+        if (isUnreachable(error)) continue;
+        break;
       }
-      throw new ApiError(502, 'Resume Builder service unavailable');
     }
+
+    const error = lastError;
+    logger.error('Resume Builder API error', { url, error });
+    if (axios.isAxiosError(error)) {
+      const isDown = isUnreachable(error);
+      const isAuthError = error.response?.status === 401;
+      throw new ApiError(
+        error.response?.status || 502,
+        isDown
+          ? 'Resume Builder is not running. Start it on port 5001 (resume-builder/backend).'
+          : isAuthError
+            ? 'Resume Builder sync key mismatch. Ensure INTERNAL_SYNC_KEY matches on ports 5001 and 5003.'
+            : error.response?.data?.message || 'Resume Builder service unavailable'
+      );
+    }
+    throw new ApiError(502, 'Resume Builder service unavailable');
   }
 
   async getResumes(email: string) {
