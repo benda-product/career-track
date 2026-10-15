@@ -135,18 +135,22 @@ export function JobBoardCard({ job, onApply, note }: Props) {
         </div>
       ) : null}
       <div className="job-bottom">
+        <button
+          type="button"
+          className="view-job"
+          onClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            onApply(job);
+          }}
+        >
+          Apply Now <span>→</span>
+        </button>
         <div className="job-actions">
-          <button
-            type="button"
-            className="view-job"
-            onClick={(event) => {
-              event.preventDefault();
-              event.stopPropagation();
-              onApply(job);
-            }}
-          >
-            Apply Now <span>→</span>
-          </button>
+          <span className="posted-date">
+            {note ? <span className="job-note">{note}</span> : null}
+            {postedLabel(job.postedAt)}
+          </span>
           {saved ? (
             <button
               type="button"
@@ -162,10 +166,6 @@ export function JobBoardCard({ job, onApply, note }: Props) {
             </button>
           ) : null}
         </div>
-        <span className="posted-date">
-          {note ? <span className="job-note">{note}</span> : null}
-          {postedLabel(job.postedAt)}
-        </span>
       </div>
     </article>
   );
