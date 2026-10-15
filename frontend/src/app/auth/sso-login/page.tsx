@@ -19,6 +19,9 @@ function SsoLoginContent() {
   const redirect = searchParams.get('redirect') || '/dashboard';
 
   useEffect(() => {
+    if (window.location.search.includes('token=')) {
+      window.history.replaceState(null, '', window.location.pathname);
+    }
     if (!token) {
       router.replace('/auth/login');
       return;

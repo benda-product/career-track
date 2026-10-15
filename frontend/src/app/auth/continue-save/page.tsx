@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import axios from 'axios';
 import { getApiUrl } from '@/constants';
 import { jobSaveReturnTarget, safeJobSaveReturn } from '@/lib/talent-return';
+import { restoreAuthSession } from '@/lib/auth-session';
 import { authService } from '@/services/auth.service';
 import {
   getStoredAccessToken,
@@ -28,17 +29,11 @@ async function saveWithSession(payload: {
   salary?: string;
   employmentType?: string;
 }) {
-  const store = useAuthStore.getState();
-  let token = getStoredAccessToken() || store.accessToken;
+  let token = getStoredAccessToken() || useAuthStore.getState().accessToken;
   if (!token) {
-    const refresh = getStoredRefreshToken() || store.refreshToken;
-    const { data } = await axios.post(
-      `${getApiUrl()}/auth/refresh-token`,
-      refresh ? { refreshToken: refresh } : {},
-      { withCredentials: true }
-    );
-    token = data.data.accessToken as string;
-    store.updateTokens(token, data.data.refreshToken);
+    const restored = await restoreAuthSession();
+    token = getStoredAccessToken() || useAuthStore.getState().accessToken;
+    if (!restored || !token) throw new Error('Session expired');
   }
   await axios.post(`${getApiUrl()}/jobs/save`, payload, {
     withCredentials: true,
@@ -94,14 +89,25 @@ function ContinueSaveContent() {
 
   useEffect(() => {
     if (!hasHydrated || started.current) return;
-    if (!isAuthenticated || !user) {
+    let cancelled = false;
+    void (async () => {
+      if (!getStoredAccessToken() && !useAuthStore.getState().accessToken) {
+        await restoreAuthSession();
+      }
+      if (cancelled || started.current) return;
+      const session = useAuthStore.getState();
+      if (!session.isAuthenticated || !session.user) {
+        started.current = true;
+        router.replace(loginTarget);
+        return;
+      }
+      if (session.user.role !== 'candidate') return;
       started.current = true;
-      router.replace(loginTarget);
-      return;
-    }
-    if (user.role !== 'candidate') return;
-    started.current = true;
-    void save();
+      void save();
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [hasHydrated, isAuthenticated, loginTarget, router, save, user]);
 
   const switchAccount = async () => {

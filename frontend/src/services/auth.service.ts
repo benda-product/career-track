@@ -24,9 +24,9 @@ export const authService = {
     return res.data.data!;
   },
 
-  logout: async (refreshToken: string) => {
+  logout: async (refreshToken?: string) => {
     try {
-      await apiClient.post('/auth/logout', { refreshToken });
+      await apiClient.post('/auth/logout', refreshToken ? { refreshToken } : {});
     } catch {
       // Best-effort server logout; local session is cleared by the caller.
     }

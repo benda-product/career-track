@@ -28,8 +28,7 @@ export function Header() {
   const socketStatus = useSocketStatus();
 
   const handleLogout = async () => {
-    const token = refreshToken || getStoredRefreshToken();
-    if (token) await authService.logout(token);
+    await authService.logout(refreshToken || getStoredRefreshToken() || undefined);
     clearAuth();
     router.push('/auth/login');
   };

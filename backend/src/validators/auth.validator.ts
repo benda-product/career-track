@@ -21,10 +21,13 @@ export const loginSchema = z.object({
   }),
 });
 
+/** Body token is optional. A new tab or refresh sends only the httpOnly session cookie. */
 export const refreshTokenSchema = z.object({
-  body: z.object({
-    refreshToken: z.string().min(1),
-  }),
+  body: z
+    .object({
+      refreshToken: z.string().min(1).optional(),
+    })
+    .optional(),
 });
 
 export const logoutSchema = refreshTokenSchema;

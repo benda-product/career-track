@@ -310,21 +310,37 @@ export class AuthService {
   }
 
   async refreshToken(token: string) {
-    const payload = verifyRefreshToken(token);
+    let payload: ReturnType<typeof verifyRefreshToken>;
+    try {
+      payload = verifyRefreshToken(token);
+    } catch {
+      throw new ApiError(401, 'Invalid refresh token');
+    }
     const user = await userRepository.findById(payload.userId);
     if (!user || !user.isActive || !user.refreshTokens.includes(token)) {
       throw new ApiError(401, 'Invalid refresh token');
     }
 
+    const role = payload.role === 'support' ? 'support' : user.role;
     const tokens = this.buildTokens({
       _id: user._id,
       email: user.email,
-      role: payload.role === 'support' ? 'support' : user.role,
+      role,
     });
     await userRepository.removeRefreshToken(user._id.toString(), token);
     await userRepository.addRefreshToken(user._id.toString(), tokens.refreshToken);
 
-    return tokens;
+    return {
+      ...tokens,
+      user: {
+        id: user._id.toString(),
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        role,
+        isEmailVerified: user.isEmailVerified,
+      },
+    };
   }
 
   async logout(refreshToken: string) {

@@ -10,7 +10,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { RecommendedJobCard } from '@/components/jobs/recommended-job-card';
+import { JobBoardCard, JobBoardList } from '@/components/jobs/job-board-card';
 import { recommendedJobsService } from '@/services/recommendedJobs.service';
 import { usePlanEntitlements } from '@/hooks/use-plan-entitlements';
 import Link from 'next/link';
@@ -355,15 +355,16 @@ export default function RecommendedJobsPage() {
               </CardContent>
             </Card>
           ) : (
-            <div className="space-y-3.5">
+            <JobBoardList>
               {paginatedJobs.map((job) => (
-                <RecommendedJobCard
+                <JobBoardCard
                   key={job.id}
                   job={job}
                   onApply={openApply}
+                  note={[job.alreadyApplied ? 'Applied' : '', `${job.matchScore}% match`].filter(Boolean).join(' · ')}
                 />
               ))}
-            </div>
+            </JobBoardList>
           )}
 
           {/* PAGINATION PANEL */}

@@ -2,7 +2,9 @@
 
 import { Suspense, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import axios from 'axios';
 import { Loader2 } from 'lucide-react';
+import { getApiUrl } from '@/constants';
 import { useAuthStore } from '@/store/auth.store';
 import { User, UserRole } from '@/types';
 import { resolveWorkspacePath } from '@/lib/post-auth-navigation';
@@ -13,7 +15,6 @@ function BendaSsoPageContent() {
   const setAuth = useAuthStore((s) => s.setAuth);
 
   useEffect(() => {
-    const accessToken = searchParams.get('accessToken');
     const refreshToken = searchParams.get('refreshToken');
     const userId = searchParams.get('userId');
     const email = searchParams.get('email');
@@ -22,8 +23,9 @@ function BendaSsoPageContent() {
     const role = (searchParams.get('role') || 'candidate') as UserRole;
     const accountType = searchParams.get('accountType');
     const redirect = searchParams.get('redirect') || '/dashboard';
+    window.history.replaceState(null, '', window.location.pathname);
 
-    if (!accessToken || !refreshToken || !userId || !email || !firstName || !lastName) {
+    if (!refreshToken || !userId || !email || !firstName || !lastName) {
       router.replace('/auth/login?error=Sign-in%20from%20Benda%20failed.%20Please%20sign%20in%20with%20your%20Career%20Track%20password.');
       return;
     }
@@ -33,17 +35,36 @@ function BendaSsoPageContent() {
       return;
     }
 
-    const user: User = {
-      id: userId,
-      email,
-      firstName,
-      lastName,
-      role,
-      isEmailVerified: true,
-    };
+    let cancelled = false;
+    void (async () => {
+      try {
+        const { data } = await axios.post(
+          `${getApiUrl()}/auth/refresh-token`,
+          { refreshToken },
+          { withCredentials: true }
+        );
+        if (cancelled) return;
+        const sessionUser = data?.data?.user || {};
+        const user: User = {
+          id: String(sessionUser.id || userId),
+          email: sessionUser.email || email,
+          firstName: sessionUser.firstName || firstName,
+          lastName: sessionUser.lastName || lastName,
+          role: (sessionUser.role || role) as UserRole,
+          isEmailVerified: sessionUser.isEmailVerified !== false,
+        };
+        setAuth(user, data.data.accessToken, data.data.refreshToken);
+        router.replace(resolveWorkspacePath(user.role, redirect));
+      } catch {
+        if (!cancelled) {
+          router.replace('/auth/login?error=Sign-in%20from%20Benda%20failed.%20Please%20sign%20in%20with%20your%20Career%20Track%20password.');
+        }
+      }
+    })();
 
-    setAuth(user, accessToken, refreshToken);
-    router.replace(resolveWorkspacePath(role, redirect));
+    return () => {
+      cancelled = true;
+    };
   }, [router, searchParams, setAuth]);
 
   return (

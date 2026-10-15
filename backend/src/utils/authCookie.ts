@@ -15,7 +15,8 @@ function isSecureRequest(req?: Request) {
 
 function sameSiteMode(req?: Request): 'lax' | 'none' | 'strict' {
   const forced = String(process.env.AUTH_COOKIE_SAMESITE || '').toLowerCase();
-  if (forced === 'none' || forced === 'lax' || forced === 'strict') return forced;
+  if (forced === 'lax' || forced === 'strict') return forced;
+  if (forced === 'none' && isSecureRequest(req)) return 'none';
   try {
     const clientHost = new URL(env.clientUrl).hostname;
     const apiHost = String(req?.hostname || '').toLowerCase();
@@ -26,14 +27,24 @@ function sameSiteMode(req?: Request): 'lax' | 'none' | 'strict' {
   return isSecureRequest(req) ? 'none' : 'lax';
 }
 
+function cookieDomain(): string | undefined {
+  const configured = String(process.env.AUTH_COOKIE_DOMAIN || '')
+    .trim()
+    .replace(/^\./, '');
+  if (!configured || configured === 'localhost' || /^\d+\.\d+\.\d+\.\d+$/.test(configured)) return undefined;
+  return configured;
+}
+
 function buildCookieOptions(req: Request | undefined, maxAgeMs: number, clear = false) {
   const sameSite = sameSiteMode(req);
   const secure = sameSite === 'none' ? true : isSecureRequest(req);
+  const domain = cookieDomain();
   return {
     httpOnly: true,
     secure,
     sameSite,
     path: '/',
+    ...(domain ? { domain } : {}),
     ...(clear ? { maxAge: 0, expires: new Date(0) } : { maxAge: maxAgeMs }),
   };
 }

@@ -3,13 +3,12 @@
 import { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
-import axios from 'axios';
 import { Sidebar } from '@/components/resume/Sidebar';
 import { TopNavbar } from '@/components/resume/TopNavbar';
 import { SocketProvider } from '@/components/providers/socket-provider';
-import { getStoredAccessToken, useAuthStore } from '@/store/auth.store';
+import { useAuthStore } from '@/store/auth.store';
 import { profileService } from '@/services/profile.service';
-import { getApiUrl } from '@/constants';
+import { restoreAuthSession } from '@/lib/auth-session';
 import { isPublicJobBrowsePath } from '@/lib/job-auth';
 
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -17,50 +16,25 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const hasHydrated = useAuthStore((s) => s.hasHydrated);
-  const updateTokens = useAuthStore((s) => s.updateTokens);
-  const clearAuth = useAuthStore((s) => s.clearAuth);
   const [profileChecked, setProfileChecked] = useState(false);
   const [sessionReady, setSessionReady] = useState(false);
 
   useEffect(() => {
-    if (!hasHydrated || isAuthenticated) return;
-    if (isPublicJobBrowsePath(pathname)) return;
-    router.push('/auth/login');
-  }, [hasHydrated, isAuthenticated, pathname, router]);
-
-  // After refresh, JWTs live only in httpOnly cookies — restore memory Bearer for sockets.
-  useEffect(() => {
-    if (!hasHydrated || !isAuthenticated) return;
-    if (getStoredAccessToken() || useAuthStore.getState().accessToken) {
-      setSessionReady(true);
-      return;
-    }
-
+    if (!hasHydrated) return;
     let cancelled = false;
-    axios
-      .post(`${getApiUrl()}/auth/refresh-token`, {}, { withCredentials: true })
-      .then(({ data }) => {
-        if (cancelled) return;
-        const accessToken = data?.data?.accessToken;
-        const refreshToken = data?.data?.refreshToken;
-        if (accessToken && refreshToken) {
-          updateTokens(accessToken, refreshToken);
-          setSessionReady(true);
-        } else {
-          clearAuth();
-          router.push('/auth/login');
-        }
-      })
-      .catch(() => {
-        if (cancelled) return;
-        clearAuth();
-        router.push('/auth/login');
-      });
-
+    restoreAuthSession().finally(() => {
+      if (!cancelled) setSessionReady(true);
+    });
     return () => {
       cancelled = true;
     };
-  }, [hasHydrated, isAuthenticated, updateTokens, clearAuth, router]);
+  }, [hasHydrated]);
+
+  useEffect(() => {
+    if (!hasHydrated || !sessionReady || isAuthenticated) return;
+    if (isPublicJobBrowsePath(pathname)) return;
+    router.push('/auth/login');
+  }, [hasHydrated, sessionReady, isAuthenticated, pathname, router]);
 
   useEffect(() => {
     if (!hasHydrated || !isAuthenticated || !sessionReady) return;
@@ -81,7 +55,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
       .catch(() => setProfileChecked(true));
   }, [hasHydrated, isAuthenticated, sessionReady, pathname, router]);
 
-  if (!hasHydrated || (isAuthenticated && !sessionReady)) {
+  if (!hasHydrated || !sessionReady) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />

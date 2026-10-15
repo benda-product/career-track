@@ -3,31 +3,25 @@
 import { useState, useMemo } from 'react';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
-import { Bookmark, Loader2, MapPin, Trash2, Building, DollarSign, Calendar, Search, SlidersHorizontal, Briefcase, ExternalLink } from 'lucide-react';
+import { Bookmark, MapPin, Building, Search } from 'lucide-react';
+import { JobBoardCard, JobBoardList } from '@/components/jobs/job-board-card';
 import { PageHeader } from '@/components/ui/page-header';
-import { Button } from '@/components/ui/button';
 import { ButtonLink } from '@/components/ui/link-button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
 import { jobsService } from '@/services/jobs.service';
 import { normalizeSavedJobs } from '@/utils/jobs';
-import { useSavedJobs } from '@/hooks/use-saved-jobs';
-import { Job } from '@/types';
 import { cn } from '@/lib/utils';
-import { motion, AnimatePresence } from 'framer-motion';
 import { ApplyWithResumeDialog } from '@/components/jobs/apply-with-resume-dialog';
 import { useJobApply } from '@/hooks/use-job-apply';
 
 export default function SavedJobsPage() {
-  const { unsaveJob, isToggling } = useSavedJobs();
-
   // Search & Filtering States
   const [searchQuery, setSearchQuery] = useState('');
   const [workstyleFilter, setWorkstyleFilter] = useState<'all' | 'remote' | 'hybrid' | 'onsite'>('all');
 
-  const { data: savedJobs = [], isLoading, refetch } = useQuery({
+  const { data: savedJobs = [], isLoading } = useQuery({
     queryKey: ['saved-jobs'],
     queryFn: async () => {
       const res = await jobsService.getSavedJobs(1, 50);
@@ -48,11 +42,6 @@ export default function SavedJobsPage() {
     defaultResumeId,
     createResume,
   } = useJobApply();
-
-  async function handleRemove(job: Job) {
-    await unsaveJob(job.id);
-    refetch();
-  }
 
   // Metrics summary
   const metrics = useMemo(() => {
@@ -208,96 +197,16 @@ export default function SavedJobsPage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-3.5">
-          <AnimatePresence initial={false}>
-            {filteredJobs.map((job, idx) => (
-              <motion.div
-                key={job.id}
-                initial={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, height: 0, y: -15, marginBottom: 0, transition: { duration: 0.25 } }}
-                className="overflow-hidden"
-              >
-                <Card className="relative overflow-hidden border-border/80 shadow-sm pl-3.5 before:absolute before:top-0 before:bottom-0 before:left-0 before:w-1 before:bg-primary transition-all duration-200 hover:shadow-md hover:border-primary/45">
-                  <CardContent className="flex flex-col gap-4 p-4.5 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="space-y-1.5 min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <h3 className="font-bold text-foreground text-sm tracking-tight sm:text-base leading-snug truncate">{job.title}</h3>
-                        {job.remote && (
-                          <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20 text-[9px] font-bold uppercase rounded py-0.5 px-1.5 shrink-0">
-                            Remote
-                          </Badge>
-                        )}
-                        {job.hybrid && (
-                          <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-100 text-[9px] font-bold uppercase rounded py-0.5 px-1.5 shrink-0">
-                            Hybrid
-                          </Badge>
-                        )}
-                        {job.hasApplied && (
-                          <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-100 text-[9px] font-bold uppercase rounded py-0.5 px-1.5 shrink-0">
-                            Applied
-                          </Badge>
-                        )}
-                      </div>
-                      <p className="text-xs text-muted-foreground font-semibold flex items-center gap-1.5">
-                        <Building className="h-3.5 w-3.5 text-muted-foreground/70" />
-                        {job.company}
-                      </p>
-                      <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground font-semibold pt-0.5">
-                        {job.location && (
-                          <span className="flex items-center gap-1">
-                            <MapPin className="h-3.5 w-3.5 text-muted-foreground/60" />
-                            {job.location}
-                          </span>
-                        )}
-                        {job.salary && (
-                          <span className="flex items-center gap-0.5">
-                            <DollarSign className="h-3.5 w-3.5 text-muted-foreground/60" />
-                            {job.salary}
-                          </span>
-                        )}
-                        {job.employmentType && (
-                          <span className="flex items-center gap-1">
-                            <Briefcase className="h-3.5 w-3.5 text-muted-foreground/60" />
-                            {job.employmentType}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="flex flex-wrap gap-2 items-center">
-                      <Button
-                        size="sm"
-                        onClick={() => openApply(job)}
-                        className="h-8 text-[10px] font-black bg-primary text-primary-foreground hover:bg-primary/90 flex items-center gap-1 cursor-pointer"
-                      >
-                        Apply
-                      </Button>
-                      
-                      <ButtonLink href={`/jobs/${job.id}`} size="sm" variant="outline" className="h-8 text-[10px] font-bold border-border/80">
-                        View Details
-                      </ButtonLink>
-                      
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        disabled={isToggling(job.id)}
-                        onClick={() => void handleRemove(job)}
-                        className="h-8 text-[10px] font-semibold text-rose-600 hover:text-rose-700 hover:bg-rose-50 border border-transparent hover:border-rose-100 cursor-pointer"
-                      >
-                        {isToggling(job.id) ? (
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        ) : (
-                          <Trash2 className="h-3.5 w-3.5" />
-                        )}
-                        Remove
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            ))}
-          </AnimatePresence>
-        </div>
+        <JobBoardList>
+          {filteredJobs.map((job) => (
+            <JobBoardCard
+              key={job.id}
+              job={job}
+              onApply={openApply}
+              note={job.hasApplied ? 'Applied' : undefined}
+            />
+          ))}
+        </JobBoardList>
       )}
 
       {applyError ? (

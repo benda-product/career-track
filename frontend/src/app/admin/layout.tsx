@@ -2,62 +2,37 @@
 
 import { Suspense, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import axios from 'axios';
 import { Loader2 } from 'lucide-react';
 import { AdminSidebar } from '@/components/layout/admin-sidebar';
 import { AdminHeader } from '@/components/layout/admin-header';
 import { SocketProvider } from '@/components/providers/socket-provider';
-import { getStoredAccessToken, useAuthStore } from '@/store/auth.store';
-import { getApiUrl } from '@/constants';
+import { useAuthStore } from '@/store/auth.store';
+import { restoreAuthSession } from '@/lib/auth-session';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const user = useAuthStore((state) => state.user);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const hasHydrated = useAuthStore((state) => state.hasHydrated);
-  const updateTokens = useAuthStore((state) => state.updateTokens);
-  const clearAuth = useAuthStore((state) => state.clearAuth);
   const [sessionReady, setSessionReady] = useState(false);
 
   useEffect(() => {
     if (!hasHydrated) return;
-    if (!isAuthenticated || user?.role !== 'admin') {
-      router.replace(user && user.role !== 'admin' ? '/dashboard' : '/auth/login?redirect=/admin');
-    }
-  }, [hasHydrated, isAuthenticated, user, router]);
-
-  useEffect(() => {
-    if (!hasHydrated || !isAuthenticated || user?.role !== 'admin') return;
-    if (getStoredAccessToken() || useAuthStore.getState().accessToken) {
-      setSessionReady(true);
-      return;
-    }
-
     let cancelled = false;
-    axios
-      .post(`${getApiUrl()}/auth/refresh-token`, {}, { withCredentials: true })
-      .then(({ data }) => {
-        if (cancelled) return;
-        const accessToken = data?.data?.accessToken;
-        const refreshToken = data?.data?.refreshToken;
-        if (accessToken && refreshToken) {
-          updateTokens(accessToken, refreshToken);
-          setSessionReady(true);
-        } else {
-          clearAuth();
-          router.push('/auth/login?redirect=/admin');
-        }
-      })
-      .catch(() => {
-        if (cancelled) return;
-        clearAuth();
-        router.push('/auth/login?redirect=/admin');
-      });
-
+    restoreAuthSession().finally(() => {
+      if (!cancelled) setSessionReady(true);
+    });
     return () => {
       cancelled = true;
     };
-  }, [hasHydrated, isAuthenticated, user, updateTokens, clearAuth, router]);
+  }, [hasHydrated]);
+
+  useEffect(() => {
+    if (!hasHydrated || !sessionReady) return;
+    if (!isAuthenticated || user?.role !== 'admin') {
+      router.replace(user && user.role !== 'admin' ? '/dashboard' : '/auth/login?redirect=/admin');
+    }
+  }, [hasHydrated, sessionReady, isAuthenticated, user, router]);
 
   if (!hasHydrated || !isAuthenticated || user?.role !== 'admin' || !sessionReady) {
     return (
