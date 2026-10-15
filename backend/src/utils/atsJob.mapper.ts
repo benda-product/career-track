@@ -48,10 +48,11 @@ function formatSalaryAmount(amount: number, currency = 'USD'): string {
   }
 }
 
-function formatJobSalary(raw: Record<string, unknown>): string | undefined {
-  const legacy = String(raw.salary || '').trim();
-  if (legacy) return legacy;
+function isPayPeriodLabel(value: string) {
+  return /^(annual|annually|yearly|monthly|hourly|weekly|daily)$/i.test(value.trim());
+}
 
+function formatJobSalary(raw: Record<string, unknown>): string | undefined {
   const currency = String(raw.salaryCurrency || 'USD');
   const salaryMin = typeof raw.salaryMin === 'number' ? raw.salaryMin : undefined;
   const salaryMax = typeof raw.salaryMax === 'number' ? raw.salaryMax : undefined;
@@ -61,26 +62,37 @@ function formatJobSalary(raw: Record<string, unknown>): string | undefined {
   }
   if (salaryMin != null) return `From ${formatSalaryAmount(salaryMin, currency)}`;
   if (salaryMax != null) return `Up to ${formatSalaryAmount(salaryMax, currency)}`;
+
+  const legacy = String(raw.salary || '').trim();
+  if (legacy && !isPayPeriodLabel(legacy)) return legacy;
   return undefined;
+}
+
+function formatJobLocation(raw: Record<string, unknown>) {
+  const city = String(raw.city || '').trim();
+  const state = String(raw.state || '').trim();
+  const country = String(raw.country || '').trim();
+  const place = [city, state, country].filter(Boolean).join(', ');
+  if (place) return place;
+  const broad = String(raw.location || '').trim();
+  return broad || undefined;
 }
 
 export function normalizeAtsJob(raw: Record<string, unknown>): NormalizedJob {
   const companyRef = raw.companyId as { name?: string } | undefined;
   const remoteMode = raw.remoteMode as string | undefined;
 
-  const city = raw.city as string | undefined;
-  const state = raw.state as string | undefined;
-  const country = raw.country as string | undefined;
+  const city = String(raw.city || '').trim() || undefined;
+  const state = String(raw.state || '').trim() || undefined;
+  const country = String(raw.country || '').trim() || undefined;
+  const companyRecord = companyRef as { name?: string; logoUrl?: string } | undefined;
 
   return {
     id: String(raw._id ?? raw.id ?? ''),
     title: (raw.title as string) || 'Untitled',
-    company: companyRef?.name ?? (raw.company as string) ?? 'Unknown',
-    companyLogo: (companyRef as { logoUrl?: string } | undefined)?.logoUrl ?? (raw.companyLogo as string | undefined),
-    location:
-      (raw.location as string) ||
-      [city, state, country].filter(Boolean).join(', ') ||
-      undefined,
+    company: companyRecord?.name || (typeof raw.company === 'string' ? raw.company : '') || 'Company',
+    companyLogo: companyRecord?.logoUrl || (typeof raw.companyLogo === 'string' ? raw.companyLogo : undefined),
+    location: formatJobLocation(raw),
     city,
     state,
     country,

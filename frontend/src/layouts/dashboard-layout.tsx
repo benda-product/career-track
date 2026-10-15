@@ -10,6 +10,7 @@ import { SocketProvider } from '@/components/providers/socket-provider';
 import { getStoredAccessToken, useAuthStore } from '@/store/auth.store';
 import { profileService } from '@/services/profile.service';
 import { getApiUrl } from '@/constants';
+import { isPublicJobBrowsePath } from '@/lib/job-auth';
 
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -22,10 +23,10 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [sessionReady, setSessionReady] = useState(false);
 
   useEffect(() => {
-    if (hasHydrated && !isAuthenticated) {
-      router.push('/auth/login');
-    }
-  }, [hasHydrated, isAuthenticated, router]);
+    if (!hasHydrated || isAuthenticated) return;
+    if (isPublicJobBrowsePath(pathname)) return;
+    router.push('/auth/login');
+  }, [hasHydrated, isAuthenticated, pathname, router]);
 
   // After refresh, JWTs live only in httpOnly cookies — restore memory Bearer for sockets.
   useEffect(() => {
@@ -63,7 +64,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!hasHydrated || !isAuthenticated || !sessionReady) return;
-    if (pathname?.startsWith('/onboarding')) {
+    if (pathname?.startsWith('/onboarding') || isPublicJobBrowsePath(pathname)) {
       setProfileChecked(true);
       return;
     }
@@ -88,9 +89,9 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (!isAuthenticated) return null;
+  if (!isAuthenticated && !isPublicJobBrowsePath(pathname)) return null;
 
-  if (!profileChecked && !pathname?.startsWith('/onboarding')) {
+  if (!profileChecked && !pathname?.startsWith('/onboarding') && !isPublicJobBrowsePath(pathname)) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />

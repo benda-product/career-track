@@ -185,9 +185,8 @@ function RegisterPageContent() {
 
   if (accountMode === 'active') {
     const loginParams = new URLSearchParams({
-      email: emailFromQuery,
       redirect: redirectPath,
-      from: 'apply',
+      ...(fromApply ? { from: 'apply' } : {}),
     });
     return (
       <AuthShell
@@ -254,7 +253,15 @@ function RegisterPageContent() {
           <div className="h-px flex-1 bg-[var(--ct-line)]" />
         </div>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <form
+          method="post"
+          action="/auth/register"
+          onSubmit={(event) => {
+            event.preventDefault();
+            void handleSubmit(onSubmit)(event);
+          }}
+          className="space-y-4"
+        >
           {error ? (
             <div
               role="alert"
@@ -340,7 +347,6 @@ function RegisterPageContent() {
           Already have an account?{' '}
           <Link
             href={`/auth/login?${new URLSearchParams({
-              ...(emailFromQuery ? { email: emailFromQuery } : {}),
               redirect: redirectPath,
               ...(fromApply ? { from: 'apply' } : {}),
             }).toString()}`}

@@ -1,61 +1,135 @@
 'use client';
 
-import { useState, useMemo, Suspense } from 'react';
-import Link from 'next/link';
+import { useEffect, useMemo, useState, Suspense } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Briefcase, MapPin, ExternalLink, Building, DollarSign, Calendar, Sparkles, AlertCircle, Loader2, Search, SlidersHorizontal, ChevronDown, Bookmark } from 'lucide-react';
-import { SaveJobButton } from '@/components/jobs/save-job-button';
-import { PageHeader } from '@/components/ui/page-header';
-import { Button } from '@/components/ui/button';
-import { ButtonLink } from '@/components/ui/link-button';
-import { Input } from '@/components/ui/input';
-import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Skeleton } from '@/components/ui/skeleton';
-import { jobsService } from '@/services/jobs.service';
-import { EMPLOYMENT_TYPES } from '@/constants';
-import { normalizeJobsPayload } from '@/utils/jobs';
-import { Job } from '@/types';
-import { cn } from '@/lib/utils';
-import { motion, AnimatePresence } from 'framer-motion';
+import { Briefcase, Building2, ChartNoAxesColumnIncreasing, MapPin, Search } from 'lucide-react';
 import { ApplyWithResumeDialog } from '@/components/jobs/apply-with-resume-dialog';
-import { JobDetailSections } from '@/components/jobs/job-detail-sections';
-import { buildJobDescriptionPreview, hasJobDescriptionContent } from '@/lib/job-content';
+import { JobAuthDialog } from '@/components/jobs/job-auth-dialog';
+import { SaveJobButton } from '@/components/jobs/save-job-button';
 import { useJobApply } from '@/hooks/use-job-apply';
+import { jobsService } from '@/services/jobs.service';
+import { recommendedJobsService } from '@/services/recommendedJobs.service';
+import { normalizeJobsPayload } from '@/utils/jobs';
+import { useSavedJobs } from '@/hooks/use-saved-jobs';
+import { useAuthStore } from '@/store/auth.store';
+import type { Job } from '@/types';
+import '@/styles/job-board.css';
+
+const TABS = ['All Jobs', 'Recommended', 'Recently Added', 'Remote', 'Hybrid'];
+const PAGE_SIZE = 3;
+const DEPARTMENTS = [
+  'Engineering',
+  'Development',
+  'IT',
+  'Product',
+  'HR',
+  'Sales',
+  'Finance',
+  'Marketing',
+  'Operations',
+  'Customer Success',
+  'Legal',
+  'Cloud & Infrastructure',
+  'Infrastructure & Platform Engineering',
+  'Product Management',
+];
+const JOB_TYPES = ['Full-Time', 'Part-Time', 'Internship', 'Contract'];
+const WORK_MODES = ['On-Site', 'Remote', 'Hybrid'];
+const EXPERIENCE_LEVELS = ['Entry Level', '1–3 Years', '3–5 Years', '5+ Years'];
+
+type FilterGroup = { title: string; options: string[] };
 
 function getApiErrorMessage(error: unknown, fallback: string) {
   const axiosErr = error as { response?: { data?: { message?: string } }; message?: string };
   const message = axiosErr.response?.data?.message || axiosErr.message;
-  if (message && !/^Request failed with status code \d+$/.test(message)) {
-    return message;
-  }
+  if (message && !/^Request failed with status code \d+$/.test(message)) return message;
   return fallback;
 }
 
-function JobsContent() {
+function companyInitials(name?: string) {
+  if (!name) return '?';
+  return name
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? '')
+    .join('');
+}
 
-  // Search filter states
+function jobTypeLabel(value?: string) {
+  const key = String(value || '').toLowerCase().replace(/[\s-]/g, '_');
+  const labels: Record<string, string> = {
+    full_time: 'Full-Time',
+    fulltime: 'Full-Time',
+    part_time: 'Part-Time',
+    parttime: 'Part-Time',
+    internship: 'Internship',
+    intern: 'Internship',
+    contract: 'Contract',
+    contractor: 'Contract',
+  };
+  return labels[key] || 'Full-Time';
+}
+
+function workModeLabel(job: Job) {
+  if (job.remote) return 'Remote';
+  if (job.hybrid) return 'Hybrid';
+  return 'On-Site';
+}
+
+function experienceLabel(job: Job) {
+  const level = String(job.experienceLevel || '').toLowerCase();
+  if (level.includes('entry') || level.includes('fresher') || level.includes('junior')) return 'Entry Level';
+  if (/(^|[^0-9])1\s*[-–to]+\s*3/.test(level)) return '1–3 Years';
+  if (/(^|[^0-9])3\s*[-–to]+\s*5/.test(level)) return '3–5 Years';
+  if (level.includes('5+') || level.includes('senior') || level.includes('lead')) return '5+ Years';
+  const years = job.minExperience;
+  if (years == null && !level) return 'Entry Level';
+  if ((years ?? 0) < 1) return 'Entry Level';
+  if ((years ?? 0) < 3) return '1–3 Years';
+  if ((years ?? 0) < 5) return '3–5 Years';
+  return '5+ Years';
+}
+
+function postedLabel(iso?: string) {
+  if (!iso) return 'Posted recently';
+  const days = Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
+  if (Number.isNaN(days) || days <= 0) return 'Posted Today';
+  if (days === 1) return 'Posted 1 Day Ago';
+  return `Posted ${days} Days Ago`;
+}
+
+function salaryLabel(job: Job) {
+  return job.salary?.trim() || 'Salary on request';
+}
+
+function CompanyMark({ name, logo }: { name?: string; logo?: string }) {
+  const [failed, setFailed] = useState(false);
+  return (
+    <div className="company-logo" aria-hidden="true">
+      <span>{companyInitials(name)}</span>
+      {logo && !failed ? (
+        <img src={logo} alt="" onError={() => setFailed(true)} />
+      ) : null}
+    </div>
+  );
+}
+
+function JobsContent() {
   const [query, setQuery] = useState('');
   const [location, setLocation] = useState('');
-  const [employmentType, setEmploymentType] = useState('');
-
-  // Expandable description card state
-  const [expandedJobId, setExpandedJobId] = useState<string | null>(null);
-
-  const { data, isLoading, isFetching, isError, error, refetch } = useQuery({
-    queryKey: ['jobs', query, location, employmentType],
-    queryFn: () =>
-      jobsService.searchJobs({
-        query: query.trim() || undefined,
-        location: location.trim() || undefined,
-        employmentType: employmentType && employmentType !== 'All' ? employmentType : undefined,
-      }),
-    retry: 1,
-  });
-
-  const jobs: Job[] = normalizeJobsPayload(data?.data);
-
+  const [activeTab, setActiveTab] = useState('All Jobs');
+  const [filters, setFilters] = useState<Record<string, string[]>>({});
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  const [showSaved, setShowSaved] = useState(false);
+  const [page, setPage] = useState(1);
+  const [mobileFilters, setMobileFilters] = useState(false);
+  const [notice, setNotice] = useState('');
+  const [authPrompt, setAuthPrompt] = useState<{ job: Job; mode: 'apply' | 'incompatible' } | null>(null);
+  const hasHydrated = useAuthStore((state) => state.hasHydrated);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const role = useAuthStore((state) => state.user?.role);
+  const { savedJobs } = useSavedJobs();
   const {
     applyJob,
     openApply,
@@ -69,312 +143,393 @@ function JobsContent() {
     createResume,
   } = useJobApply();
 
-  const handleToggleExpand = (id: string) => {
-    setExpandedJobId((prev) => (prev === id ? null : id));
+  const { data, isLoading, isError, error, refetch } = useQuery({
+    queryKey: ['jobs', 'board'],
+    queryFn: () => jobsService.searchJobs({ limit: 100 }),
+    retry: 1,
+  });
+
+  const recommendedQuery = useQuery({
+    queryKey: ['jobs-board-recommended'],
+    queryFn: () => recommendedJobsService.getRecommendedJobs(1, 50),
+    enabled: role === 'candidate',
+    retry: false,
+  });
+
+  const catalog = useMemo(() => normalizeJobsPayload(data?.data), [data]);
+  const recommendedJobs = recommendedQuery.data?.items || [];
+  const recommendedIds = useMemo(() => new Set(recommendedJobs.map((job) => job.id)), [recommendedJobs]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('saved') !== '1') return;
+    setNotice('Job saved successfully.');
+    params.delete('saved');
+    params.delete('jobId');
+    const next = `${window.location.pathname}${params.toString() ? `?${params.toString()}` : ''}`;
+    window.history.replaceState(null, '', next);
+  }, []);
+
+  const sourceJobs = useMemo(() => {
+    const byId = new Map(catalog.map((job) => [job.id, job]));
+    if (activeTab === 'Recommended') {
+      for (const job of recommendedJobs) {
+        if (job.id && !byId.has(job.id)) byId.set(job.id, job);
+      }
+    }
+    if (showSaved) {
+      for (const job of savedJobs) {
+        if (job.id && !byId.has(job.id)) byId.set(job.id, job);
+      }
+    }
+    return [...byId.values()];
+  }, [activeTab, catalog, recommendedJobs, savedJobs, showSaved]);
+
+  const filterGroups: FilterGroup[] = useMemo(() => {
+    const posted = [...new Set(sourceJobs.map((job) => job.department || '').filter(Boolean))];
+    const departments = [
+      ...DEPARTMENTS,
+      ...posted.filter((department) => !DEPARTMENTS.includes(department)),
+    ];
+    return [
+      { title: 'Department', options: departments },
+      { title: 'Job Type', options: JOB_TYPES },
+      { title: 'Work Mode', options: WORK_MODES },
+      { title: 'Experience', options: EXPERIENCE_LEVELS },
+    ];
+  }, [sourceJobs]);
+
+  const filteredJobs = useMemo(() => {
+    let result = [...sourceJobs];
+    const keyword = query.trim().toLowerCase();
+    if (keyword) {
+      result = result.filter((job) =>
+        [job.title, job.company, job.department, ...(job.skills || [])].join(' ').toLowerCase().includes(keyword)
+      );
+    }
+    const place = location.trim().toLowerCase();
+    if (place) {
+      result = result.filter((job) => (job.location || '').toLowerCase().includes(place));
+    }
+    if (!showSaved) {
+      if (activeTab === 'Recommended') result = result.filter((job) => recommendedIds.has(job.id));
+      if (activeTab === 'Recently Added') {
+        result = result.filter((job) => ['Posted Today', 'Posted 1 Day Ago'].includes(postedLabel(job.postedAt)));
+      }
+      if (activeTab === 'Remote') result = result.filter((job) => workModeLabel(job) === 'Remote');
+      if (activeTab === 'Hybrid') result = result.filter((job) => workModeLabel(job) === 'Hybrid');
+    }
+    for (const group of filterGroups) {
+      const selected = filters[group.title] ?? [];
+      if (selected.length === 0) continue;
+      result = result.filter((job) => {
+        if (group.title === 'Department') return selected.includes(job.department || 'General');
+        if (group.title === 'Job Type') return selected.includes(jobTypeLabel(job.employmentType));
+        if (group.title === 'Work Mode') return selected.includes(workModeLabel(job));
+        if (group.title === 'Experience') return selected.includes(experienceLabel(job));
+        return true;
+      });
+    }
+    if (showSaved) {
+      const savedIds = new Set(savedJobs.map((job) => job.id));
+      result = result.filter((job) => savedIds.has(job.id));
+    }
+    return result;
+  }, [sourceJobs, query, location, showSaved, activeTab, recommendedIds, filterGroups, filters, savedJobs]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredJobs.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const visibleJobs = filteredJobs.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+  const activeFilterCount = Object.values(filters).reduce((total, selected) => total + selected.length, 0);
+  const pageNumbers = Array.from({ length: totalPages }, (_, index) => index + 1)
+    .filter((number) => number <= 3 || number === currentPage || number === totalPages)
+    .reduce<(number | '...')[]>((result, number, index, numbers) => {
+      if (index > 0 && number - numbers[index - 1] > 1) result.push('...');
+      result.push(number);
+      return result;
+    }, []);
+
+  const toggleFilter = (group: string, option: string) => {
+    setFilters((previous) => {
+      const current = previous[group] ?? [];
+      const updated = current.includes(option)
+        ? current.filter((item) => item !== option)
+        : [...current, option];
+      return { ...previous, [group]: updated };
+    });
+    setPage(1);
   };
 
-  // Metrics summary
-  const metrics = useMemo(() => {
-    const total = jobs.length;
-    const remoteCount = jobs.filter((j) => j.remote).length;
-    const hybridCount = jobs.filter((j) => j.hybrid).length;
-    return { total, remoteCount, hybridCount };
-  }, [jobs]);
+  const requestApply = (job: Job) => {
+    if (!hasHydrated || !job.id) return;
+    if (!isAuthenticated) {
+      setAuthPrompt({ job, mode: 'apply' });
+      return;
+    }
+    if (role !== 'candidate') {
+      setAuthPrompt({ job, mode: 'incompatible' });
+      return;
+    }
+    openApply(job);
+  };
+
+  const resetFilters = () => {
+    setFilters({});
+    setQuery('');
+    setLocation('');
+    setActiveTab('All Jobs');
+    setShowSaved(false);
+    setPage(1);
+  };
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title="Jobs Board"
-        description="Explore active recruitment opportunities integrated from our ATS platform partner pipelines"
-        action={
-          <div className="flex gap-2">
-            <ButtonLink href="/jobs/saved" variant="outline" className="h-9 px-4 font-semibold text-xs border-border/80">
-              Saved Jobs
-            </ButtonLink>
-            <ButtonLink href="/jobs/search" variant="outline" className="h-9 px-4 font-semibold text-xs border-border/80">
-              Advanced Search
-            </ButtonLink>
-          </div>
-        }
-      />
-
-      {isError ? (
-        <div className="rounded-2xl border border-rose-100 bg-rose-50/50 p-4 text-sm text-rose-800">
-          <p className="font-semibold">Unable to load jobs from Talent.</p>
-          <p className="mt-1 text-xs text-rose-700">
-            {getApiErrorMessage(
-              error,
-              'Please confirm Talent and Career Track backends are running, then retry.'
-            )}
-          </p>
-          <Button type="button" size="sm" variant="outline" className="mt-3" onClick={() => refetch()}>
-            Try again
-          </Button>
-        </div>
-      ) : null}
-
-      {/* THREE-COLUMN STATS PANEL */}
-      <div className="grid gap-4 grid-cols-1 sm:grid-cols-3">
-        <Card className="border-border/85 shadow-sm bg-card/60">
-          <CardContent className="p-4 flex items-center gap-3.5">
-            <div className="p-2.5 bg-primary/10 rounded-xl text-primary shrink-0">
-              <Briefcase className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-[10px] text-muted-foreground font-bold tracking-wider uppercase">Active Positions</p>
-              <p className="text-xl font-black text-foreground mt-0.5">{metrics.total}</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-border/85 shadow-sm bg-card/60">
-          <CardContent className="p-4 flex items-center gap-3.5">
-            <div className="p-2.5 bg-primary/10 rounded-xl text-primary shrink-0">
-              <Sparkles className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-[10px] text-muted-foreground font-bold tracking-wider uppercase">Remote / Hybrid</p>
-              <p className="text-xl font-black text-foreground mt-0.5">
-                {metrics.remoteCount} <span className="text-xs font-semibold text-muted-foreground">/ {metrics.hybridCount}</span>
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-border/85 shadow-sm bg-card/60">
-          <CardContent className="p-4 flex items-center gap-3.5">
-            <div className="p-2.5 bg-primary/10 rounded-xl text-primary shrink-0">
-              <Bookmark className="h-5 w-5" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-[10px] text-muted-foreground font-bold tracking-wider uppercase">Recommendations</p>
-              <Link href="/jobs/recommended" className="text-xs font-bold text-primary flex items-center gap-0.5 hover:underline mt-1">
-                Personalized Matches
-                <ChevronDown className="-rotate-90 h-3 w-3" />
-              </Link>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* UNIFIED CONTROLS SEARCH TOOLBAR */}
-      <Card className="border-border/80 shadow-sm">
-        <CardContent className="p-4">
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
-            <div className="relative md:col-span-5 w-full">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search by keywords, title, company..."
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                className="pl-9 bg-background border border-border/80 rounded-xl text-xs h-9 placeholder:text-muted-foreground"
-              />
-            </div>
-
-            <div className="relative md:col-span-3 w-full">
-              <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Location"
-                value={location}
-                onChange={(e) => setLocation(e.target.value)}
-                className="pl-9 bg-background border border-border/80 rounded-xl text-xs h-9 placeholder:text-muted-foreground"
-              />
-            </div>
-
-            <div className="md:col-span-2 w-full">
-              <Select value={employmentType} onValueChange={(v) => setEmploymentType(v || '')}>
-                <SelectTrigger className="bg-background border border-border/80 rounded-xl text-xs h-9 text-muted-foreground font-semibold">
-                  <SelectValue placeholder="Job Type" />
-                </SelectTrigger>
-                <SelectTrigger className="hidden" /> {/* HACK to override default select arrow offset styles */}
-                <SelectContent>
-                  <SelectItem value="All">All Types</SelectItem>
-                  {EMPLOYMENT_TYPES.map((t) => (
-                    <SelectItem key={t} value={t}>
-                      {t}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="md:col-span-2 w-full">
-              <Button
-                onClick={() => refetch()}
-                disabled={isFetching}
-                className="w-full h-9 rounded-xl font-bold text-xs bg-primary text-primary-foreground hover:bg-primary/95 flex items-center justify-center gap-1.5 cursor-pointer"
-              >
-                {isFetching && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                Find Jobs
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* JOB LISTINGS FEED */}
-      {isLoading ? (
-        <div className="space-y-3">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <Skeleton key={i} className="h-28 rounded-2xl animate-pulse" />
+    <div className="ct-job-board">
+      <section className="search-area">
+        <form
+          className="search-form"
+          onSubmit={(event) => {
+            event.preventDefault();
+            setPage(1);
+          }}
+        >
+          <label className="search-field">
+            <Search className="search-field-icon" size={18} aria-hidden="true" />
+            <input
+              className="search-input"
+              aria-label="Search jobs"
+              placeholder="Search job title, skills or keywords"
+              value={query}
+              onChange={(event) => {
+                setQuery(event.target.value);
+                setPage(1);
+              }}
+            />
+          </label>
+          <label className="search-field">
+            <MapPin className="search-field-icon" size={18} aria-hidden="true" />
+            <input
+              className="search-input"
+              aria-label="Job location"
+              placeholder="Location"
+              value={location}
+              onChange={(event) => {
+                setLocation(event.target.value);
+                setPage(1);
+              }}
+            />
+          </label>
+          <button className="search-button" type="submit">
+            Search
+          </button>
+        </form>
+        <nav className="tabs" aria-label="Job categories">
+          {TABS.map((tab) => (
+            <button
+              key={tab}
+              className={`tab ${activeTab === tab && !showSaved ? 'active' : ''}`}
+              aria-pressed={activeTab === tab && !showSaved}
+              type="button"
+              onClick={() => {
+                setActiveTab(tab);
+                setShowSaved(false);
+                setPage(1);
+              }}
+            >
+              {tab}
+            </button>
           ))}
-        </div>
-      ) : jobs.length === 0 ? (
-        <Card className="border-dashed bg-muted/10">
-          <CardContent className="flex flex-col items-center py-14 text-center max-w-sm mx-auto space-y-3">
-            <div className="p-3 bg-muted rounded-full text-muted-foreground">
-              <Briefcase className="h-7 w-7" />
+          <button
+            className={`tab ${showSaved ? 'active' : ''}`}
+            aria-pressed={showSaved}
+            type="button"
+            onClick={() => {
+              setShowSaved((previous) => !previous);
+              setPage(1);
+            }}
+          >
+            Saved ({savedJobs.length})
+          </button>
+        </nav>
+      </section>
+
+      <section className="results-area">
+        {isError ? (
+          <div className="board-error" role="alert">
+            <p>Unable to load jobs from Talent.</p>
+            <p>{getApiErrorMessage(error, 'Please confirm Talent and Career Track are running, then retry.')}</p>
+            <button type="button" onClick={() => refetch()}>
+              Try again
+            </button>
+          </div>
+        ) : null}
+        <div className="results-top">{showSaved ? 'Saved Jobs' : `${filteredJobs.length} Open Positions`}</div>
+        <button
+          className="mobile-filter-toggle"
+          type="button"
+          onClick={() => setMobileFilters((previous) => !previous)}
+          aria-expanded={mobileFilters}
+        >
+          Filters ({activeFilterCount})
+          <span>{mobileFilters ? '−' : '+'}</span>
+        </button>
+        <div className="results-layout">
+          <aside className={`filter-panel ${mobileFilters ? 'mobile-open' : ''}`}>
+            <div className="filter-header">
+              <h2>FILTERS</h2>
+              <button type="button" onClick={resetFilters}>
+                {activeFilterCount ? `Applied (${activeFilterCount})` : 'Clear All'}
+              </button>
             </div>
-            <p className="font-bold text-foreground text-sm">No vacancies match search criteria</p>
-            <p className="text-[11px] text-muted-foreground leading-relaxed">
-              Try adjusting your keyword query, location settings, or employment type selectors.
-            </p>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="space-y-3.5">
-          {jobs.map((job, i) => {
-            const isExpanded = expandedJobId === job.id;
-            const companyInitial = job.company ? job.company.charAt(0).toUpperCase() : 'C';
-            
-            return (
-              <Card
-                key={job.id || i}
-                className="relative overflow-hidden border-border/80 shadow-sm pl-3.5 before:absolute before:top-0 before:bottom-0 before:left-0 before:w-1 before:bg-primary transition-all duration-200 hover:shadow-md hover:border-primary/45"
-              >
-                <CardContent className="p-4.5 space-y-3.5">
-                  <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-                    {/* Company Initial Badge & Details Grid */}
-                    <div className="flex gap-3.5 items-start">
-                      <div className="h-11 w-11 shrink-0 rounded-2xl bg-primary/10 border border-primary/20 text-primary flex items-center justify-center font-black text-sm select-none shadow-sm uppercase">
-                        {companyInitial}
-                      </div>
-
-                      <div className="space-y-1 min-w-0">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <h3 className="font-bold text-foreground text-sm tracking-tight sm:text-base leading-snug truncate">{job.title || 'Job Title'}</h3>
-                          {job.remote && (
-                            <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20 text-[9px] font-bold uppercase rounded py-0.5 px-1.5 shrink-0">
-                              Remote
-                            </Badge>
-                          )}
-                          {job.hybrid && (
-                            <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-100 text-[9px] font-bold uppercase rounded py-0.5 px-1.5 shrink-0">
-                              Hybrid
-                            </Badge>
-                          )}
-                          {job.hasApplied && (
-                            <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-100 text-[9px] font-bold uppercase rounded py-0.5 px-1.5 shrink-0">
-                              Applied
-                            </Badge>
-                          )}
-                        </div>
-
-                        <p className="text-xs text-muted-foreground font-semibold">{job.company}</p>
-                        
-                        <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground font-semibold pt-0.5">
-                          {job.location && (
-                            <span className="flex items-center gap-1">
-                              <MapPin className="h-3.5 w-3.5 text-muted-foreground/60" />
-                              {job.location}
-                            </span>
-                          )}
-                          {job.salary && (
-                            <span className="flex items-center gap-0.5">
-                              <DollarSign className="h-3.5 w-3.5 text-muted-foreground/60" />
-                              {job.salary}
-                            </span>
-                          )}
-                          {job.employmentType && (
-                            <span className="flex items-center gap-1">
-                              <Briefcase className="h-3.5 w-3.5 text-muted-foreground/60" />
-                              {job.employmentType}
-                            </span>
-                          )}
-                        </div>
+            {filterGroups.map((group) => (
+              <div className="filter-group" key={group.title}>
+                <button
+                  className="filter-group-heading"
+                  type="button"
+                  aria-expanded={!collapsed[group.title]}
+                  onClick={() =>
+                    setCollapsed((previous) => ({
+                      ...previous,
+                      [group.title]: !previous[group.title],
+                    }))
+                  }
+                >
+                  {group.title}
+                  <span className={`chevron ${collapsed[group.title] ? 'closed' : ''}`} />
+                </button>
+                {!collapsed[group.title]
+                  ? group.options.map((option) => (
+                      <label className="filter-option" key={option}>
+                        <input
+                          type="checkbox"
+                          checked={(filters[group.title] ?? []).includes(option)}
+                          onChange={() => toggleFilter(group.title, option)}
+                        />
+                        <span>{option}</span>
+                      </label>
+                    ))
+                  : null}
+              </div>
+            ))}
+          </aside>
+          <div className="job-list">
+            {notice ? (
+              <p className="notice" role="status">
+                {notice}
+              </p>
+            ) : null}
+            {applyError ? (
+              <p className="board-error" role="alert">
+                {applyError}
+              </p>
+            ) : null}
+            {isLoading ? (
+              <div className="status-state">
+                <h2>Loading open roles</h2>
+                <p>Fetching jobs published on Talent.</p>
+              </div>
+            ) : visibleJobs.length > 0 ? (
+              visibleJobs.map((job) => (
+                <article className="job-card" key={job.id}>
+                  <div className="job-top">
+                    <div className="job-heading">
+                      <CompanyMark name={job.company} logo={job.companyLogo} />
+                      <div>
+                        <h2 className="job-title">{job.title || 'Job Title'}</h2>
+                        <p className="job-company">{job.company || 'Company'}</p>
                       </div>
                     </div>
-
-                    {/* Quick apply triggers */}
-                    <div className="flex shrink-0 gap-2 items-center justify-between sm:justify-end border-t sm:border-0 pt-3 sm:pt-0">
-                      <SaveJobButton job={{ ...job, id: job.id || String(i) }} variant="outline" />
-                      <Button
-                        size="sm"
-                        onClick={() => openApply(job)}
-                        className="h-8 text-[10px] font-black bg-primary text-primary-foreground hover:bg-primary/90 flex items-center gap-1 cursor-pointer"
-                      >
-                        Apply
-                      </Button>
-                    </div>
+                    <SaveJobButton job={job} appearance="board" />
                   </div>
-
-                  {/* Skills constraints */}
-                  {job.skills && job.skills.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5 pt-1 border-t border-border/20">
-                      {job.skills.map((skill, index) => (
-                        <Badge key={`${skill}-${index}`} variant="outline" className="bg-muted/30 text-[9px] font-bold py-0.5 px-2 border-border/80">
+                  <div className="job-meta">
+                    <span>
+                      <MapPin className="meta-icon" size={16} aria-hidden="true" />
+                      {job.location || 'Location not listed'}
+                    </span>
+                    <span className="meta-divider" />
+                    <span>
+                      <Building2 className="meta-icon" size={16} aria-hidden="true" />
+                      {workModeLabel(job)}
+                    </span>
+                    <span className="meta-divider" />
+                    <span>
+                      <Briefcase className="meta-icon" size={16} aria-hidden="true" />
+                      {jobTypeLabel(job.employmentType)}
+                    </span>
+                    <span className="meta-divider" />
+                    <span>
+                      <ChartNoAxesColumnIncreasing className="meta-icon" size={16} aria-hidden="true" />
+                      {experienceLabel(job)}
+                    </span>
+                  </div>
+                  <p className="job-salary">{salaryLabel(job)}</p>
+                  {job.skills?.length ? (
+                    <div className="job-skills">
+                      {job.skills.slice(0, 4).map((skill) => (
+                        <span className="job-skill" key={skill}>
                           {skill}
-                        </Badge>
+                        </span>
                       ))}
                     </div>
-                  )}
-
-                  {/* Collapsible description snippet */}
-                  <AnimatePresence initial={false}>
-                    {isExpanded && (
-                      <motion.div
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: 'auto', opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        transition={{ duration: 0.2 }}
-                        className="overflow-hidden"
-                      >
-                        <div className="pt-3 border-t border-border/20 mt-2 space-y-3">
-                          <h4 className="text-xs font-bold text-foreground">Full Job Details</h4>
-                          {hasJobDescriptionContent(job) || job.benefits?.length ? (
-                            <div className="rounded-xl border border-border/40 bg-muted/20 p-3">
-                              <JobDetailSections job={job} showSkills={false} />
-                            </div>
-                          ) : (
-                            <p className="text-[11px] text-muted-foreground leading-relaxed whitespace-pre-wrap bg-muted/20 border border-border/40 p-3 rounded-xl">
-                              {buildJobDescriptionPreview(job) || 'No job description provided from the ATS platform integration.'}
-                            </p>
-                          )}
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-
-                  {/* Action panel footer */}
-                  <div className="flex gap-2 justify-start pt-2.5 border-t border-border/10">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleToggleExpand(job.id || String(i))}
-                      className="h-7 font-semibold text-[9px] border gap-1 hover:bg-muted/30 px-2.5"
-                    >
-                      {isExpanded ? 'Hide Description' : 'View Description'}
-                      <ChevronDown className={cn("h-3 w-3 text-muted-foreground transition-transform duration-200", isExpanded && "rotate-180")} />
-                    </Button>
-                    
-                    <ButtonLink href={`/jobs/${job.id || i}`} size="sm" variant="ghost" className="h-7 text-[9px] font-bold border px-2.5">
-                      <ExternalLink className="mr-1 h-3 w-3" />
-                      View Details Page
-                    </ButtonLink>
+                  ) : null}
+                  <div className="job-bottom">
+                    <button type="button" className="view-job" onClick={() => requestApply(job)}>
+                      Apply Now <span>→</span>
+                    </button>
+                    <span className="posted-date">{postedLabel(job.postedAt)}</span>
                   </div>
-                </CardContent>
-              </Card>
-            );
-          })}
+                </article>
+              ))
+            ) : (
+              <div className="empty-state">
+                <h3>No jobs found</h3>
+                <p>Try a different search or clear your filters.</p>
+                <button className="clear-button" type="button" onClick={resetFilters}>
+                  Clear filters
+                </button>
+              </div>
+            )}
+          </div>
         </div>
-      )}
-
-      {applyError ? (
-        <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
-          {applyError}
-        </div>
-      ) : null}
-
+        {!isLoading && filteredJobs.length > 0 ? (
+          <div className="pagination">
+            <button
+              className="page-arrow"
+              type="button"
+              disabled={currentPage === 1}
+              onClick={() => setPage((previous) => Math.max(1, previous - 1))}
+              aria-label="Previous page"
+            >
+              ‹
+            </button>
+            {pageNumbers.map((number, index) =>
+              number === '...' ? (
+                <button className="page-button" key={`ellipsis-${index}`} type="button" disabled>
+                  ...
+                </button>
+              ) : (
+                <button
+                  className={`page-button ${currentPage === number ? 'active' : ''}`}
+                  key={number}
+                  type="button"
+                  onClick={() => setPage(number)}
+                  aria-current={currentPage === number ? 'page' : undefined}
+                >
+                  {number}
+                </button>
+              )
+            )}
+            <button
+              className="page-arrow"
+              type="button"
+              disabled={currentPage >= totalPages}
+              onClick={() => setPage((previous) => Math.min(totalPages, previous + 1))}
+              aria-label="Next page"
+            >
+              ›
+            </button>
+          </div>
+        ) : null}
+      </section>
       <ApplyWithResumeDialog
         open={Boolean(applyJob)}
         onOpenChange={(open) => {
@@ -389,13 +544,32 @@ function JobsContent() {
         onSubmit={(resumeId) => void submitApply(resumeId)}
         onCreateResume={createResume}
       />
+      <JobAuthDialog
+        open={Boolean(authPrompt)}
+        mode={authPrompt?.mode || 'apply'}
+        job={authPrompt?.job || null}
+        onOpenChange={(open) => {
+          if (!open) setAuthPrompt(null);
+        }}
+      />
     </div>
   );
 }
 
 export default function JobsPage() {
   return (
-    <Suspense fallback={<Skeleton className="h-96 rounded-2xl" />}>
+    <Suspense
+      fallback={
+        <div className="ct-job-board">
+          <section className="results-area">
+            <div className="status-state">
+              <h2>Loading open roles</h2>
+              <p>Fetching jobs published on Talent.</p>
+            </div>
+          </section>
+        </div>
+      }
+    >
       <JobsContent />
     </Suspense>
   );

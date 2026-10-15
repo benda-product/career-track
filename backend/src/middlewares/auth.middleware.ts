@@ -12,6 +12,16 @@ export interface AuthRequest extends Request {
   };
 }
 
+/** Attaches a user when a valid session is present, and allows anonymous job browsing. */
+export const authenticateOptional = (req: AuthRequest, _res: Response, next: NextFunction): void => {
+  const token = readAccessTokenFromRequest(req);
+  if (!token) {
+    next();
+    return;
+  }
+  authenticate(req, _res, next);
+};
+
 export const authenticate = (req: AuthRequest, _res: Response, next: NextFunction): void => {
   const token = readAccessTokenFromRequest(req);
   if (!token) {

@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useEffect, useState } from 'react';
+import { Suspense, useEffect, useLayoutEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useForm } from 'react-hook-form';
@@ -35,9 +35,19 @@ function LoginPageContent() {
   const [loading, setLoading] = useState(false);
   const [turnstileToken, setTurnstileToken] = useState('');
   const [turnstileKey, setTurnstileKey] = useState(0);
-  const emailFromQuery = String(searchParams.get('email') || '').trim();
   const redirectPath = searchParams.get('redirect') || '/dashboard';
   const fromApply = searchParams.get('from') === 'apply';
+
+  useLayoutEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (!params.has('email') && !params.has('password')) return;
+    params.delete('email');
+    params.delete('password');
+    const query = params.toString();
+    const next = `${window.location.pathname}${query ? `?${query}` : ''}${window.location.hash}`;
+    window.history.replaceState(window.history.state, '', next);
+    router.replace(next, { scroll: false });
+  }, [router]);
 
   useEffect(() => {
     const requested = searchParams.get('redirect');
@@ -64,7 +74,7 @@ function LoginPageContent() {
   } = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
-      email: emailFromQuery,
+      email: '',
       password: '',
     },
   });
@@ -132,7 +142,15 @@ function LoginPageContent() {
           <div className="h-px flex-1 bg-[var(--ct-line)]" />
         </div>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <form
+          method="post"
+          action="/auth/login"
+          onSubmit={(event) => {
+            event.preventDefault();
+            void handleSubmit(onSubmit)(event);
+          }}
+          className="space-y-4"
+        >
           {error ? (
             <div
               role="alert"

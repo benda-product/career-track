@@ -2,6 +2,7 @@
 
 import { useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useAuthStore } from '@/store/auth.store';
 import { jobsService } from '@/services/jobs.service';
 import { Job } from '@/types';
 import { jobToSavePayload, normalizeSavedJobs } from '@/utils/jobs';
@@ -9,12 +10,17 @@ import { jobToSavePayload, normalizeSavedJobs } from '@/utils/jobs';
 export function useSavedJobs() {
   const queryClient = useQueryClient();
 
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const role = useAuthStore((state) => state.user?.role);
+  const canUseSavedJobs = isAuthenticated && role === 'candidate';
+
   const { data: savedJobs = [], isLoading } = useQuery({
     queryKey: ['saved-jobs'],
     queryFn: async () => {
       const res = await jobsService.getSavedJobs(1, 100);
       return normalizeSavedJobs(res.data);
     },
+    enabled: canUseSavedJobs,
   });
 
   const savedIds = useMemo(() => new Set(savedJobs.map((job) => job.id)), [savedJobs]);

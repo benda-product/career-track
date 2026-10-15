@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { Bell, LogOut, Menu, Search, Settings, User, Radio, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -22,7 +22,8 @@ import { useSocketStatus } from '@/components/providers/socket-provider';
 
 export function Header() {
   const router = useRouter();
-  const { user, refreshToken, clearAuth } = useAuthStore();
+  const pathname = usePathname();
+  const { user, refreshToken, clearAuth, isAuthenticated, hasHydrated } = useAuthStore();
   const [search, setSearch] = useState('');
   const socketStatus = useSocketStatus();
 
@@ -85,6 +86,15 @@ export function Header() {
 
       {/* Right Actions Block */}
       <div className="flex items-center gap-3">
+        {hasHydrated && !isAuthenticated ? (
+          <Link
+            href={`/auth/login?${new URLSearchParams({ redirect: pathname || '/jobs' }).toString()}`}
+            className="inline-flex h-9 items-center rounded-lg bg-[var(--ct-green)] px-3 text-xs font-semibold text-white hover:bg-[var(--ct-green-deep)]"
+          >
+            Sign in
+          </Link>
+        ) : (
+          <>
         {/* Real-time Connection status indicator */}
         <div
           className={`hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[10px] font-bold ${
@@ -163,6 +173,8 @@ export function Header() {
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+          </>
+        )}
       </div>
     </header>
   );

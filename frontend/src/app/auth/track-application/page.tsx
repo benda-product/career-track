@@ -16,7 +16,6 @@ function TrackApplicationContent() {
     redirect,
     from: 'apply',
   });
-  if (email) authParams.set('email', email);
   if (applicationId) authParams.set('applicationId', applicationId);
 
   const loginHref = `/auth/login?${authParams.toString()}`;

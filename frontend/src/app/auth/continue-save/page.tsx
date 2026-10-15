@@ -4,7 +4,7 @@ import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import axios from 'axios';
 import { getApiUrl } from '@/constants';
-import { safeTalentJobReturn, talentReturnWithSaved } from '@/lib/talent-return';
+import { jobSaveReturnTarget, safeJobSaveReturn } from '@/lib/talent-return';
 import { authService } from '@/services/auth.service';
 import {
   getStoredAccessToken,
@@ -62,7 +62,7 @@ function ContinueSaveContent() {
   const salary = clip(searchParams.get('salary'), 80);
   const employmentType = clip(searchParams.get('employmentType'), 40);
   const companyLogo = clip(searchParams.get('companyLogo'), 300);
-  const returnUrl = safeTalentJobReturn(searchParams.get('return'));
+  const returnUrl = safeJobSaveReturn(searchParams.get('return'));
   const loginTarget = `/auth/login?redirect=${encodeURIComponent(`/auth/continue-save?${searchParams.toString()}`)}`;
   const started = useRef(false);
 
@@ -85,7 +85,7 @@ function ContinueSaveContent() {
           ? { companyLogo }
           : {}),
       });
-      window.location.replace(talentReturnWithSaved(returnUrl, jobId));
+      window.location.replace(jobSaveReturnTarget(returnUrl, jobId));
     } catch {
       setSaving(false);
       setError('The job could not be saved. Please try again.');

@@ -1,12 +1,13 @@
 'use client';
 
-import { Suspense, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { Briefcase, Building2, DollarSign, MapPin } from 'lucide-react';
 import { SaveJobButton } from '@/components/jobs/save-job-button';
 import { JobRecommendedAssessment } from '@/components/jobs/job-recommended-assessment';
 import { ApplyWithResumeDialog } from '@/components/jobs/apply-with-resume-dialog';
+import { JobAuthDialog } from '@/components/jobs/job-auth-dialog';
 import { JobDetailSections } from '@/components/jobs/job-detail-sections';
 import { PageHeader } from '@/components/ui/page-header';
 import { Button } from '@/components/ui/button';
@@ -22,7 +23,11 @@ import type { Job } from '@/types';
 function JobDetailContent() {
   const { id } = useParams<{ id: string }>();
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const hasHydrated = useAuthStore((s) => s.hasHydrated);
+  const role = useAuthStore((s) => s.user?.role);
   const [assessmentDetailsOpen, setAssessmentDetailsOpen] = useState(false);
+  const [notice, setNotice] = useState('');
+  const [authPrompt, setAuthPrompt] = useState<'apply' | 'incompatible' | null>(null);
 
   const {
     applyJob,
@@ -40,9 +45,19 @@ function JobDetailContent() {
   const { data: job, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['job', id],
     queryFn: () => jobsService.getJob(id),
-    enabled: !!id && isAuthenticated,
+    enabled: !!id,
     retry: false,
   });
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('saved') !== '1') return;
+    setNotice('Job saved successfully.');
+    params.delete('saved');
+    params.delete('jobId');
+    const next = `${window.location.pathname}${params.toString() ? `?${params.toString()}` : ''}`;
+    window.history.replaceState(null, '', next);
+  }, []);
 
   if (isLoading) return <Skeleton className="h-96" />;
 
@@ -69,6 +84,7 @@ function JobDetailContent() {
     id: jobData.id || id,
     title: jobData.title || 'Job Title',
     company: jobData.company || 'Company',
+    companyLogo: jobData.companyLogo,
     location: jobData.location,
     salary: jobData.salary,
     employmentType: jobData.employmentType,
@@ -80,6 +96,19 @@ function JobDetailContent() {
     ...jobForSave,
     id: jobData.id || id,
     applyUrl: jobData.applyUrl,
+  };
+
+  const requestApply = () => {
+    if (!hasHydrated) return;
+    if (!isAuthenticated) {
+      setAuthPrompt('apply');
+      return;
+    }
+    if (role !== 'candidate') {
+      setAuthPrompt('incompatible');
+      return;
+    }
+    openApply(jobForApply);
   };
 
   return (
@@ -95,12 +124,18 @@ function JobDetailContent() {
               </Button>
             ) : null}
             <SaveJobButton job={jobForSave} variant="outline" showLabel />
-            <Button onClick={() => openApply(jobForApply)}>
+            <Button onClick={requestApply}>
               Apply
             </Button>
           </div>
         }
       />
+
+      {notice ? (
+        <p className="rounded-xl border border-[var(--ct-line)] bg-[var(--ct-tint)] px-4 py-3 text-sm font-semibold text-[var(--ct-green-deep)]" role="status">
+          {notice}
+        </p>
+      ) : null}
 
       {applyError ? (
         <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
@@ -122,6 +157,14 @@ function JobDetailContent() {
         onSubmit={(resumeId) => void submitApply(resumeId)}
         onCreateResume={createResume}
       />
+      <JobAuthDialog
+        open={Boolean(authPrompt)}
+        mode={authPrompt || 'apply'}
+        job={jobForSave}
+        onOpenChange={(open) => {
+          if (!open) setAuthPrompt(null);
+        }}
+      />
 
       {recommendedAssessment ? (
         <JobRecommendedAssessment
@@ -133,7 +176,15 @@ function JobDetailContent() {
 
       <Card>
         <CardContent className="space-y-5 p-6">
-          <div className="flex flex-wrap gap-3 text-sm text-muted-foreground">
+          <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
+            {jobData.companyLogo ? (
+              <img
+                src={jobData.companyLogo}
+                alt=""
+                className="h-10 w-10 rounded-xl border border-border/80 bg-white object-contain p-1"
+              />
+            ) : null}
+            <span className="font-semibold text-foreground">{jobData.company}</span>
             {jobData.location ? (
               <span className="flex items-center gap-1">
                 <MapPin className="h-4 w-4" />

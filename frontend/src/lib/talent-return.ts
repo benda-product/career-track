@@ -8,6 +8,7 @@ const EXTRA_ORIGINS = [
 ];
 
 const SAFE_PATH = /^\/(?:jobs|company)\/[A-Za-z0-9_-]{8,64}$/;
+const INTERNAL_JOB_PATH = /^\/jobs(?:\/[A-Za-z0-9_-]{8,64})?$/;
 
 function allowedOrigins() {
   const origins = new Set(EXTRA_ORIGINS);
@@ -35,9 +36,28 @@ export function safeTalentJobReturn(raw: string | null): string | null {
   return `${url.origin}${url.pathname}`;
 }
 
+/** Talent job page, or a Career Track jobs listing/detail path. */
+export function safeJobSaveReturn(raw: string | null): string | null {
+  const talent = safeTalentJobReturn(raw);
+  if (talent) return talent;
+  if (!raw) return null;
+  const path = raw.split('#')[0]?.split('?')[0] || '';
+  if (!path.startsWith('/') || path.startsWith('//') || path.includes('\\')) return null;
+  return INTERNAL_JOB_PATH.test(path) ? path : null;
+}
+
 export function talentReturnWithSaved(returnUrl: string, jobId: string) {
   const url = new URL(returnUrl);
   url.searchParams.set('saved', '1');
   if (url.pathname.startsWith('/company/')) url.searchParams.set('jobId', jobId);
   return url.toString();
+}
+
+export function jobSaveReturnTarget(returnUrl: string, jobId: string) {
+  if (returnUrl.startsWith('/')) {
+    const params = new URLSearchParams({ saved: '1' });
+    if (returnUrl === '/jobs') params.set('jobId', jobId);
+    return `${returnUrl}?${params.toString()}`;
+  }
+  return talentReturnWithSaved(returnUrl, jobId);
 }

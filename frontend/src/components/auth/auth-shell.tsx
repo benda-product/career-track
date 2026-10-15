@@ -78,14 +78,14 @@ export function AuthShell({ children, title, subtitle, mode, accountSwitchHref }
             {mode === 'login' ? (
               <>
                 New here?{' '}
-                <Link href={switchHref} className="font-semibold text-[var(--ct-green)] hover:text-[var(--ct-green-deep)]">
+                <Link href="/auth/register" className="font-semibold text-[var(--ct-green)] hover:text-[var(--ct-green-deep)]">
                   Create account
                 </Link>
               </>
             ) : (
               <>
                 Have an account?{' '}
-                <Link href={switchHref} className="font-semibold text-[var(--ct-green)] hover:text-[var(--ct-green-deep)]">
+                <Link href="/auth/login" className="font-semibold text-[var(--ct-green)] hover:text-[var(--ct-green-deep)]">
                   Sign in
                 </Link>
               </>
