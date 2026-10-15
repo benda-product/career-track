@@ -383,7 +383,7 @@ export class AuthService {
     if (hub.hasBendaAccount && isRecruiter) {
       throw new ApiError(
         403,
-        'Career Track is for job seekers. Use Talent by Benda Infotech for recruiter accounts.',
+        'Career Track is for job seekers. Use Talent for recruiter accounts.',
       );
     }
 

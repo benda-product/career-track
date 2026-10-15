@@ -55,7 +55,7 @@ async function fetchAtsApplicationsByEmail(email: string): Promise<AtsApplicatio
 }
 
 /**
- * Import missing Talent by Benda Infotech applications for a signed-in Career Track user.
+ * Import missing Talent applications for a signed-in Career Track user.
  * Covers apply-time sync failures and signup-after-apply flows.
  */
 export async function backfillUserApplicationsFromAts(
@@ -105,7 +105,7 @@ export async function backfillUserApplicationsFromAts(
   }
 
   if (synced > 0) {
-    logger.info('Career Track applications backfilled from Talent by Benda Infotech', {
+    logger.info('Career Track applications backfilled from Talent', {
       email: normalizedEmail,
       userId,
       synced,

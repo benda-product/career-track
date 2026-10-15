@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useForm } from 'react-hook-form';
@@ -38,6 +38,24 @@ function LoginPageContent() {
   const emailFromQuery = String(searchParams.get('email') || '').trim();
   const redirectPath = searchParams.get('redirect') || '/dashboard';
   const fromApply = searchParams.get('from') === 'apply';
+
+  useEffect(() => {
+    const requested = searchParams.get('redirect');
+    if (!requested || !requested.startsWith('/') || requested.startsWith('//')) return;
+    let cancelled = false;
+    const resume = () => {
+      if (cancelled) return;
+      const state = useAuthStore.getState();
+      if (!state.hasHydrated || !state.isAuthenticated || !state.user) return;
+      void navigateAfterAuth(router, requested, state.user.role);
+    };
+    resume();
+    const unsubscribe = useAuthStore.persist.onFinishHydration(resume);
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
+  }, [router, searchParams]);
 
   const {
     register,
@@ -81,7 +99,7 @@ function LoginPageContent() {
       subtitle={
         fromApply
           ? 'Use the same email you applied with. You will complete your profile next, then open your application tracker.'
-          : 'Job seekers only — use Google or email. Recruiters should use Talent by Benda Infotech.'
+          : 'Job seekers only — use Google or email. Recruiters should use Talent.'
       }
     >
       <div className="space-y-5">

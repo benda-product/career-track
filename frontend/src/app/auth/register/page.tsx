@@ -49,6 +49,24 @@ function RegisterPageContent() {
   const redirectPath = searchParams.get('redirect') || '/applications/status';
   const fromApply = searchParams.get('from') === 'apply';
 
+  useEffect(() => {
+    const requested = searchParams.get('redirect');
+    if (!requested || !requested.startsWith('/') || requested.startsWith('//')) return;
+    let cancelled = false;
+    const resume = () => {
+      if (cancelled) return;
+      const state = useAuthStore.getState();
+      if (!state.hasHydrated || !state.isAuthenticated || !state.user) return;
+      void navigateAfterAuth(router, requested, state.user.role);
+    };
+    resume();
+    const unsubscribe = useAuthStore.persist.onFinishHydration(resume);
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
+  }, [router, searchParams]);
+
   const {
     register,
     handleSubmit,
