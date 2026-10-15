@@ -14,7 +14,7 @@ import { authService } from '@/services/auth.service';
 import { useAuthStore } from '@/store/auth.store';
 import { cn } from '@/lib/utils';
 import { TurnstileField, isTurnstileEnabled } from '@/components/TurnstileField';
-import { navigateAfterAuth } from '@/lib/post-auth-navigation';
+import { authSwitchHref, navigateAfterAuth } from '@/lib/post-auth-navigation';
 import type { User, UserRole } from '@/types';
 
 const registerSchema = z.object({
@@ -140,7 +140,7 @@ function RegisterPageContent() {
       result.accessToken,
       result.refreshToken
     );
-    await navigateAfterAuth(router, redirectPath);
+    await navigateAfterAuth(router, redirectPath, result.user.role || 'candidate');
   };
 
   const onSubmit = async (data: RegisterForm) => {
@@ -220,7 +220,12 @@ function RegisterPageContent() {
         : 'For job seekers. Start free — Resume AI and SkillCheck stay one switch away.';
 
   return (
-    <AuthShell mode="register" title={title} subtitle={subtitle}>
+    <AuthShell
+      mode="register"
+      accountSwitchHref={authSwitchHref('login', searchParams.get('redirect'))}
+      title={title}
+      subtitle={subtitle}
+    >
       <div className="space-y-5">
         <GoogleSignInButton
           disabled={loading}
@@ -337,7 +342,7 @@ function RegisterPageContent() {
             href={`/auth/login?${new URLSearchParams({
               ...(emailFromQuery ? { email: emailFromQuery } : {}),
               redirect: redirectPath,
-              from: 'apply',
+              ...(fromApply ? { from: 'apply' } : {}),
             }).toString()}`}
             className="font-semibold text-[var(--ct-green)] hover:text-[var(--ct-green-deep)]"
           >

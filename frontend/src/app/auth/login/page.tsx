@@ -15,7 +15,7 @@ import { useAuthStore } from '@/store/auth.store';
 import { cn } from '@/lib/utils';
 import { getBendaForgotPasswordUrl } from '@/lib/benda-auth';
 import { TurnstileField, isTurnstileEnabled } from '@/components/TurnstileField';
-import { navigateAfterAuth } from '@/lib/post-auth-navigation';
+import { authSwitchHref, navigateAfterAuth } from '@/lib/post-auth-navigation';
 
 const loginSchema = z.object({
   email: z.string().email('Enter a valid email'),
@@ -95,6 +95,7 @@ function LoginPageContent() {
   return (
     <AuthShell
       mode="login"
+      accountSwitchHref={authSwitchHref('register', searchParams.get('redirect'))}
       title={fromApply ? 'Sign in to track application' : 'Sign in'}
       subtitle={
         fromApply

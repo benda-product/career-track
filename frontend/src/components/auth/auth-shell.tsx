@@ -6,9 +6,11 @@ type AuthShellProps = {
   title: string;
   subtitle: string;
   mode: 'login' | 'register';
+  accountSwitchHref?: string;
 };
 
-export function AuthShell({ children, title, subtitle, mode }: AuthShellProps) {
+export function AuthShell({ children, title, subtitle, mode, accountSwitchHref }: AuthShellProps) {
+  const switchHref = accountSwitchHref || (mode === 'login' ? '/auth/register' : '/auth/login');
   return (
     <div className="marketing-shell relative flex min-h-screen bg-[var(--ct-canvas)] text-[var(--ct-ink)]">
       {/* Brand panel */}
@@ -76,14 +78,14 @@ export function AuthShell({ children, title, subtitle, mode }: AuthShellProps) {
             {mode === 'login' ? (
               <>
                 New here?{' '}
-                <Link href="/auth/register" className="font-semibold text-[var(--ct-green)] hover:text-[var(--ct-green-deep)]">
+                <Link href={switchHref} className="font-semibold text-[var(--ct-green)] hover:text-[var(--ct-green-deep)]">
                   Create account
                 </Link>
               </>
             ) : (
               <>
                 Have an account?{' '}
-                <Link href="/auth/login" className="font-semibold text-[var(--ct-green)] hover:text-[var(--ct-green-deep)]">
+                <Link href={switchHref} className="font-semibold text-[var(--ct-green)] hover:text-[var(--ct-green-deep)]">
                   Sign in
                 </Link>
               </>
