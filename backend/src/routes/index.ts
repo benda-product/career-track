@@ -13,12 +13,14 @@ import coursesRoutes from './courses.routes';
 import billingRoutes from './billing.routes';
 import coachingRoutes from './coaching.routes';
 import internalRoutes from './internal.routes';
+import talentPoolRoutes from './talentPool.routes';
 import adminRoutes from './admin.routes';
 import supportRoutes from './support.routes';
 import { atsApiBases, probeAtsConnectivity } from '../services/ats.service';
 
 const router = Router();
 
+router.use('/internal/talent-pool', talentPoolRoutes);
 router.use('/internal', internalRoutes);
 router.use('/admin', adminRoutes);
 router.use('/support', supportRoutes);

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { jobsService } from '@/services/jobs.service';
@@ -26,6 +26,7 @@ export function useJobApply() {
   const [applyJob, setApplyJob] = useState<ApplyJob | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [applyError, setApplyError] = useState('');
+  const submitInFlight = useRef(false);
 
   const { data: resumes = [], isLoading: resumesLoading } = useQuery({
     queryKey: ['resumes'],
@@ -51,7 +52,8 @@ export function useJobApply() {
   };
 
   const submitApply = async (resumeId: string) => {
-    if (!applyJob) return;
+    if (!applyJob || submitInFlight.current) return;
+    submitInFlight.current = true;
     setApplyError('');
     setSubmitting(true);
     try {
@@ -67,6 +69,7 @@ export function useJobApply() {
     } catch (error) {
       setApplyError(getApiErrorMessage(error, 'Unable to submit your application right now.'));
     } finally {
+      submitInFlight.current = false;
       setSubmitting(false);
     }
   };

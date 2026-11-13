@@ -260,22 +260,35 @@ export class JobsService {
 
     let application = existing;
     if (!application) {
-      application = await applicationRepository.create({
-        userId: new Types.ObjectId(userId),
-        jobId,
-        jobTitle: job.title,
-        company: job.company,
-        companyLogo: job.companyLogo,
-        location: job.location,
-        salary: job.salary,
-        stage: 'applied',
-        atsApplicationId: applicationId,
-        atsStage: 'applied',
-        appliedAt: new Date(),
-        resumeId: resolvedResumeId,
-        resumeTitle,
-        isSaved: false,
-      });
+      try {
+        application = await applicationRepository.create({
+          userId: new Types.ObjectId(userId),
+          jobId,
+          jobTitle: job.title,
+          company: job.company,
+          companyLogo: job.companyLogo,
+          location: job.location,
+          salary: job.salary,
+          stage: 'applied',
+          atsApplicationId: applicationId,
+          atsStage: 'applied',
+          appliedAt: new Date(),
+          resumeId: resolvedResumeId,
+          resumeTitle,
+          isSaved: false,
+        });
+      } catch (error) {
+        const duplicate =
+          typeof error === 'object' &&
+          error !== null &&
+          'code' in error &&
+          (error as { code?: number }).code === 11000;
+        if (!duplicate) throw error;
+        // A concurrent apply for the same user and job already created the record.
+        const concurrent = await applicationRepository.findByUserAndJob(userId, jobId);
+        if (!concurrent) throw error;
+        return { application: concurrent, created: false };
+      }
     } else {
       application =
         (await applicationRepository.update(application._id.toString(), {
