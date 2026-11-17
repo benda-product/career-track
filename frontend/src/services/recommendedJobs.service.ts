@@ -2,9 +2,13 @@ import apiClient from '@/lib/api-client';
 import { ApiResponse, PaginatedResponse, RecommendedJob } from '@/types';
 
 export const recommendedJobsService = {
-  getRecommendedJobs: async (page = 1, limit = 10): Promise<PaginatedResponse<RecommendedJob>> => {
+  getRecommendedJobs: async (
+    page = 1,
+    limit = 10,
+    market?: string
+  ): Promise<PaginatedResponse<RecommendedJob>> => {
     const res = await apiClient.get<ApiResponse<RecommendedJob[]>>('/recommended-jobs', {
-      params: { page, limit },
+      params: { page, limit, ...(market ? { market } : { market: 'all' }) },
     });
 
     return {

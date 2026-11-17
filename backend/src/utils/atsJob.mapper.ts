@@ -9,6 +9,10 @@ export interface NormalizedJob {
   city?: string;
   state?: string;
   country?: string;
+  primaryWorkCountry?: string;
+  publishedMarkets?: string[];
+  remoteEligibleCountries?: string[];
+  remoteMode?: string;
   department?: string;
   salary?: string;
   salaryMin?: number;
@@ -96,6 +100,17 @@ export function normalizeAtsJob(raw: Record<string, unknown>): NormalizedJob {
     city,
     state,
     country,
+    primaryWorkCountry:
+      String(raw.primaryWorkCountry || '').trim().toUpperCase() || undefined,
+    publishedMarkets: Array.isArray(raw.publishedMarkets)
+      ? raw.publishedMarkets.map((item) => String(item || '').trim().toUpperCase()).filter(Boolean)
+      : undefined,
+    remoteEligibleCountries: Array.isArray(raw.remoteEligibleCountries)
+      ? raw.remoteEligibleCountries
+          .map((item) => String(item || '').trim().toUpperCase())
+          .filter(Boolean)
+      : undefined,
+    remoteMode: remoteMode || undefined,
     department: (raw.department as string) || undefined,
     salary: formatJobSalary(raw),
     salaryMin: typeof raw.salaryMin === 'number' ? raw.salaryMin : undefined,

@@ -29,10 +29,12 @@ export interface ApiResponse<T = unknown> {
   message: string;
   data?: T;
   meta?: {
-    page: number;
-    limit: number;
-    total: number;
-    totalPages: number;
+    page?: number;
+    limit?: number;
+    total?: number;
+    totalPages?: number;
+    market?: string | null;
+    marketSource?: string;
   };
 }
 
@@ -165,6 +167,10 @@ export interface Job {
   city?: string;
   state?: string;
   country?: string;
+  primaryWorkCountry?: string;
+  publishedMarkets?: string[];
+  remoteEligibleCountries?: string[];
+  remoteMode?: string;
   department?: string;
   salary?: string;
   salaryMin?: number;

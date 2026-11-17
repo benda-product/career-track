@@ -10,6 +10,9 @@ export interface JobSearchFilters {
   salaryMin?: number;
   salaryMax?: number;
   location?: string;
+  /** Job market ISO/country for ATS geo visibility (not recruiter HQ). */
+  market?: string;
+  viewerCountry?: string;
   employmentType?: string;
   remote?: boolean;
   hybrid?: boolean;
@@ -180,8 +183,11 @@ class AtsService {
     return this.request('GET', '/jobs', undefined, filters as Record<string, unknown>);
   }
 
-  async getJob(jobId: string) {
-    return this.request('GET', `/jobs/${encodeURIComponent(jobId)}`);
+  async getJob(jobId: string, params?: { channel?: string; market?: string }) {
+    return this.request('GET', `/jobs/${encodeURIComponent(jobId)}`, undefined, {
+      channel: params?.channel || 'careerTrack',
+      ...(params?.market ? { market: params.market } : {}),
+    });
   }
 
   async getJobMeta(jobId: string): Promise<{

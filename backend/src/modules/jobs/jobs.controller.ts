@@ -6,15 +6,37 @@ import { hasPlanFeature, FREE_RECOMMENDED_JOBS_LIMIT, PRO_RECOMMENDED_JOBS_LIMIT
 import { asyncHandler } from '../../utils/asyncHandler';
 import { sendSuccess } from '../../utils/response';
 import { getParam } from '../../utils/params';
+import { resolveViewerMarket } from '../../utils/jobMarket';
 
 export class JobsController {
   searchJobs = asyncHandler(async (req: AuthRequest, res: Response) => {
-    const { query, location, employmentType, skills, experience, industry, remote, hybrid, page, limit } =
-      req.query;
+    const {
+      query,
+      location,
+      market,
+      viewerCountry,
+      employmentType,
+      skills,
+      experience,
+      industry,
+      remote,
+      hybrid,
+      page,
+      limit,
+    } = req.query;
+
+    const resolved = await resolveViewerMarket({
+      market: typeof market === 'string' ? market : undefined,
+      viewerCountry: typeof viewerCountry === 'string' ? viewerCountry : undefined,
+      userId: req.user?.userId,
+      // Only default from profile when the client omitted market entirely.
+      defaultFromProfile: market === undefined && viewerCountry === undefined,
+    });
 
     const jobs = await jobsService.searchJobs({
       query: typeof query === 'string' ? query : undefined,
       location: typeof location === 'string' ? location : undefined,
+      market: resolved.market,
       employmentType: typeof employmentType === 'string' ? employmentType : undefined,
       skills: typeof skills === 'string' ? skills : undefined,
       experience: typeof experience === 'string' ? experience : undefined,
@@ -24,11 +46,25 @@ export class JobsController {
       page: page != null ? Number(page) : undefined,
       limit: limit != null ? Number(limit) : undefined,
     });
-    sendSuccess(res, jobs);
+    sendSuccess(res, jobs, 'Success', 200, {
+      market: resolved.market || null,
+      marketSource: resolved.source,
+    });
   });
 
   getJob = asyncHandler(async (req: AuthRequest, res: Response) => {
-    const job = await jobsService.getJob(getParam(req.params.id), req.user?.userId);
+    const resolved = await resolveViewerMarket({
+      market: typeof req.query.market === 'string' ? req.query.market : undefined,
+      viewerCountry:
+        typeof req.query.viewerCountry === 'string' ? req.query.viewerCountry : undefined,
+      userId: req.user?.userId,
+      defaultFromProfile: false,
+    });
+    const job = await jobsService.getJob(
+      getParam(req.params.id),
+      req.user?.userId,
+      resolved.market
+    );
     sendSuccess(res, job);
   });
 
@@ -80,7 +116,19 @@ export class JobsController {
     const plan = await planService.getUserPlan(req.user!.userId);
     const maxLimit = plan === 'pro' ? PRO_RECOMMENDED_JOBS_LIMIT : FREE_RECOMMENDED_JOBS_LIMIT;
     limit = Math.min(limit, maxLimit);
-    const result = await jobsService.getRecommendedJobs(req.user!.userId, page, limit);
+    const resolved = await resolveViewerMarket({
+      market: typeof req.query.market === 'string' ? req.query.market : undefined,
+      viewerCountry:
+        typeof req.query.viewerCountry === 'string' ? req.query.viewerCountry : undefined,
+      userId: req.user!.userId,
+      defaultFromProfile: req.query.market === undefined && req.query.viewerCountry === undefined,
+    });
+    const result = await jobsService.getRecommendedJobs(
+      req.user!.userId,
+      page,
+      limit,
+      resolved.market
+    );
     const jobs = hasPlanFeature(plan, 'priority_insights')
       ? result.jobs
       : result.jobs.map((job) => ({ ...job, missingSkills: [] }));
@@ -89,6 +137,8 @@ export class JobsController {
       limit: result.limit,
       total: result.total,
       totalPages: result.totalPages,
+      market: resolved.market || null,
+      marketSource: resolved.source,
     });
   });
 }

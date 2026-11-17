@@ -4,6 +4,11 @@ export interface RecommendedJob {
   company: string;
   companyLogo?: string;
   location?: string;
+  country?: string;
+  primaryWorkCountry?: string;
+  publishedMarkets?: string[];
+  remoteEligibleCountries?: string[];
+  remoteMode?: string;
   department?: string;
   salary?: string;
   employmentType?: string;

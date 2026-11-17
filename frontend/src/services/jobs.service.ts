@@ -8,6 +8,8 @@ export interface JobFilters {
   salaryMin?: number;
   salaryMax?: number;
   location?: string;
+  /** Job market (ISO country / India / US) — ATS geo visibility */
+  market?: string;
   employmentType?: string;
   remote?: boolean;
   hybrid?: boolean;
@@ -18,7 +20,12 @@ export interface JobFilters {
 
 export const jobsService = {
   searchJobs: async (filters: JobFilters = {}) => {
-    const res = await apiClient.get<ApiResponse<Job[]>>('/jobs', { params: filters });
+    const params = {
+      ...filters,
+      // Always send market so "All markets" is explicit (backend uses `all`, not profile default).
+      market: filters.market && filters.market.trim() ? filters.market.trim() : 'all',
+    };
+    const res = await apiClient.get<ApiResponse<Job[]>>('/jobs', { params });
     return res.data;
   },
 

@@ -103,8 +103,9 @@ export class RecommendationService {
     };
   }
 
-  private async fetchJobPool(skills: string[]): Promise<NormalizedJob[]> {
+  private async fetchJobPool(skills: string[], market?: string): Promise<NormalizedJob[]> {
     const pools: NormalizedJob[] = [];
+    const marketFilter = market ? { market } : {};
 
     try {
       if (skills.length) {
@@ -112,12 +113,17 @@ export class RecommendationService {
           channel: 'careerTrack',
           skills: skills.slice(0, 10).join(','),
           limit: 50,
+          ...marketFilter,
         });
         pools.push(...extractJobsList(skillResult));
       }
 
       if (pools.length < 25) {
-        const generalResult = await atsService.searchJobs({ channel: 'careerTrack', limit: 50 });
+        const generalResult = await atsService.searchJobs({
+          channel: 'careerTrack',
+          limit: 50,
+          ...marketFilter,
+        });
         pools.push(...extractJobsList(generalResult));
       }
     } catch (error) {
@@ -139,6 +145,11 @@ export class RecommendationService {
       company: job.company,
       companyLogo: job.companyLogo,
       location: job.location,
+      country: job.country,
+      primaryWorkCountry: job.primaryWorkCountry,
+      publishedMarkets: job.publishedMarkets,
+      remoteEligibleCountries: job.remoteEligibleCountries,
+      remoteMode: job.remoteMode,
       department: job.department,
       salary: job.salary,
       employmentType: job.employmentType,
@@ -164,12 +175,17 @@ export class RecommendationService {
     };
   }
 
-  async getRecommendedJobs(userId: string, page = 1, limit = 10): Promise<RecommendedJobsResult> {
+  async getRecommendedJobs(
+    userId: string,
+    page = 1,
+    limit = 10,
+    market?: string
+  ): Promise<RecommendedJobsResult> {
     const safePage = Math.max(1, page);
     const safeLimit = Math.min(Math.max(1, limit), 50);
 
     const context = await this.buildCandidateContext(userId);
-    const pool = await this.fetchJobPool(context.skills);
+    const pool = await this.fetchJobPool(context.skills, market);
 
     const scored = pool
       .filter((job) => !context.appliedJobIds.has(job.id))

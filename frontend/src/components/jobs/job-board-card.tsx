@@ -40,6 +40,22 @@ export function workModeLabel(job: Job) {
   return 'On-Site';
 }
 
+function marketLabel(code?: string | null) {
+  const value = String(code || '').toUpperCase();
+  if (!value) return '';
+  const labels: Record<string, string> = {
+    IN: 'India',
+    US: 'United States',
+    GB: 'United Kingdom',
+    CA: 'Canada',
+    AE: 'UAE',
+    SG: 'Singapore',
+    AU: 'Australia',
+    GLOBAL: 'Worldwide',
+  };
+  return labels[value] || value;
+}
+
 export function experienceLabel(job: Job) {
   const level = String(job.experienceLevel || '').toLowerCase();
   if (level.includes('entry') || level.includes('fresher') || level.includes('junior')) return 'Entry Level';
@@ -108,6 +124,14 @@ export function JobBoardCard({ job, onApply, note }: Props) {
           <MapPin className="meta-icon" size={16} aria-hidden="true" />
           {job.location || 'Location not listed'}
         </span>
+        {job.primaryWorkCountry || job.publishedMarkets?.[0] ? (
+          <>
+            <span className="meta-divider" />
+            <span title="Job market (where this role is published)">
+              {marketLabel(job.primaryWorkCountry || job.publishedMarkets?.[0])}
+            </span>
+          </>
+        ) : null}
         <span className="meta-divider" />
         <span>
           <Building2 className="meta-icon" size={16} aria-hidden="true" />

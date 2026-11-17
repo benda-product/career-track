@@ -95,6 +95,16 @@ function toAtsQuery(filters: JobSearchFilters): Record<string, unknown> {
   if (filters.location?.trim()) {
     params.location = filters.location.trim();
   }
+  // Industry geo: filter by job market / remote eligibility (not recruiter HQ).
+  // Never forward all-market tokens to ATS (empty market = show all CT-approved jobs).
+  const marketRaw = String(filters.market || filters.viewerCountry || '').trim();
+  const marketLower = marketRaw.toLowerCase();
+  if (
+    marketRaw &&
+    !['all', 'any', 'global', '*', 'worldwide'].includes(marketLower)
+  ) {
+    params.market = marketRaw;
+  }
   const jobType = normalizeEmploymentType(filters.employmentType);
   if (jobType) {
     params.jobType = jobType;
@@ -126,8 +136,11 @@ export class JobsService {
     return extractJobsList(result).map(withTalentDeskApplyUrl);
   }
 
-  async getJob(jobId: string, userId?: string): Promise<NormalizedJob> {
-    const result = await atsService.getJob(jobId);
+  async getJob(jobId: string, userId?: string, market?: string): Promise<NormalizedJob> {
+    const result = await atsService.getJob(jobId, {
+      channel: 'careerTrack',
+      market,
+    });
     const job = extractJob(result);
 
     if (userId) {
@@ -346,8 +359,8 @@ export class JobsService {
     return RecentlyViewed.find({ userId }).sort({ viewedAt: -1 }).limit(limit);
   }
 
-  async getRecommendedJobs(userId: string, page = 1, limit = 10) {
-    return recommendationService.getRecommendedJobs(userId, page, limit);
+  async getRecommendedJobs(userId: string, page = 1, limit = 10, market?: string) {
+    return recommendationService.getRecommendedJobs(userId, page, limit, market);
   }
 
   /** Career Track job catalog from Talent, including the upstream total when present. */

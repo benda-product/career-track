@@ -46,9 +46,45 @@ function getApiErrorMessage(error: unknown, fallback: string) {
   return fallback;
 }
 
+const MARKET_STORAGE_KEY = 'ct_job_market';
+
+function defaultJobMarket(): string {
+  if (typeof window !== 'undefined') {
+    try {
+      const stored = window.localStorage.getItem(MARKET_STORAGE_KEY);
+      if (stored === 'all' || stored === '') return '';
+      if (stored) return stored;
+    } catch {
+      // ignore
+    }
+  }
+  if (typeof Intl === 'undefined') return '';
+  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || '';
+  if (tz === 'Asia/Kolkata' || tz === 'Asia/Calcutta') return 'IN';
+  if (tz.startsWith('America/')) return 'US';
+  return '';
+}
+
+function marketLabel(code?: string | null) {
+  const value = String(code || '').toUpperCase();
+  if (!value) return '';
+  const labels: Record<string, string> = {
+    IN: 'India',
+    US: 'United States',
+    GB: 'United Kingdom',
+    CA: 'Canada',
+    AE: 'UAE',
+    SG: 'Singapore',
+    AU: 'Australia',
+    GLOBAL: 'Worldwide',
+  };
+  return labels[value] || value;
+}
+
 function JobsContent() {
   const [query, setQuery] = useState('');
   const [location, setLocation] = useState('');
+  const [market, setMarket] = useState(defaultJobMarket);
   const [activeTab, setActiveTab] = useState('All Jobs');
   const [filters, setFilters] = useState<Record<string, string[]>>({});
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
@@ -75,14 +111,18 @@ function JobsContent() {
   } = useJobApply();
 
   const { data, isLoading, isError, error, refetch } = useQuery({
-    queryKey: ['jobs', 'board'],
-    queryFn: () => jobsService.searchJobs({ limit: 100 }),
+    queryKey: ['jobs', 'board', market || 'all'],
+    queryFn: () =>
+      jobsService.searchJobs({
+        limit: 100,
+        market: market || 'all',
+      }),
     retry: 1,
   });
 
   const recommendedQuery = useQuery({
-    queryKey: ['jobs-board-recommended'],
-    queryFn: () => recommendedJobsService.getRecommendedJobs(1, 50),
+    queryKey: ['jobs-board-recommended', market || 'all'],
+    queryFn: () => recommendedJobsService.getRecommendedJobs(1, 50, market || 'all'),
     enabled: role === 'candidate',
     retry: false,
   });
@@ -249,6 +289,32 @@ function JobsContent() {
               }}
             />
           </label>
+          <label className="search-field">
+            <select
+              className="search-input"
+              aria-label="Job market"
+              value={market}
+              onChange={(event) => {
+                const next = event.target.value;
+                setMarket(next);
+                try {
+                  window.localStorage.setItem(MARKET_STORAGE_KEY, next || 'all');
+                } catch {
+                  // ignore
+                }
+                setPage(1);
+              }}
+            >
+              <option value="">All markets</option>
+              <option value="IN">India</option>
+              <option value="US">United States</option>
+              <option value="GB">United Kingdom</option>
+              <option value="CA">Canada</option>
+              <option value="AE">UAE</option>
+              <option value="SG">Singapore</option>
+              <option value="AU">Australia</option>
+            </select>
+          </label>
           <button className="search-button" type="submit">
             Search
           </button>
@@ -356,7 +422,10 @@ function JobsContent() {
             {isLoading ? (
               <div className="status-state">
                 <h2>Loading open roles</h2>
-                <p>Fetching jobs published on Talent.</p>
+                <p>
+                  Fetching Career Track–approved jobs
+                  {market ? ` in ${marketLabel(market)}` : ' across all markets'}.
+                </p>
               </div>
             ) : visibleJobs.length > 0 ? (
               visibleJobs.map((job) => (
