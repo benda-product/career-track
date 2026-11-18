@@ -11,13 +11,17 @@ export const recommendedJobsService = {
       params: { page, limit, ...(market ? { market } : { market: 'all' }) },
     });
 
+    const items = res.data.data || [];
+    const meta = res.data.meta;
     return {
-      items: res.data.data || [],
-      meta: res.data.meta || {
-        page,
-        limit,
-        total: res.data.data?.length || 0,
-        totalPages: 1,
+      items,
+      meta: {
+        page: meta?.page ?? page,
+        limit: meta?.limit ?? limit,
+        total: meta?.total ?? items.length,
+        totalPages: meta?.totalPages ?? 1,
+        market: meta?.market,
+        marketSource: meta?.marketSource,
       },
     };
   },

@@ -213,6 +213,8 @@ export interface PaginatedResponse<T> {
     limit: number;
     total: number;
     totalPages: number;
+    market?: string | null;
+    marketSource?: string;
   };
 }
 
